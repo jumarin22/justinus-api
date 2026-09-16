@@ -66,14 +66,30 @@ Spring Boot 3.x-era code without checking they still resolve.
   loudly (correctly) if they don't match.
 
 **Note** — an atomic idea or excerpt tied to a Source
-- id, sourceId (FK), content, locationRef (e.g. page number, nullable),
-  createdAt
+- id, sourceId (FK), content, locationRef (nullable), createdAt
+- `locationRef` must be **String, not Integer**, despite the "e.g. page
+  number" phrasing this field used to have. Location references in real
+  reading material aren't always numeric -- "Book 3, Chapter 2" (see
+  the Discourses content in the Docusaurus site), a Kindle location
+  number, "§17," a URL fragment. Typing this as an int on the strength
+  of one example would break on the first non-numeric reference.
+- `createdAt` must be **`Instant` in Java / `TIMESTAMPTZ` in Postgres**,
+  not `LocalDateTime`/`TIMESTAMP`. The naive default silently drops
+  timezone info, which is a real bug magnet the moment this runs from
+  a different timezone than it was created in, or gets deployed
+  somewhere other than this laptop.
 - tags: a real **Tag** entity with a proper many-to-many, not a string
   array/`@ElementCollection`. This was previously left as "your call" —
   given the goal of actually learning relationship modeling, a string
   array skips the exercise entirely rather than demonstrating it. A
   real Tag entity also gets you tag reuse, "all notes with tag X," and
   tag popularity queries for free.
+  - `Tag.name` should have a **unique, case-insensitive** constraint --
+    "Stoicism" and "stoicism" must not become two different tags.
+    Enforce this with a Postgres expression index
+    (`CREATE UNIQUE INDEX ... ON tags (lower(name))`) rather than
+    relying on application code to remember to lowercase before every
+    lookup.
 
 **Concept** — a recurring idea/theme (e.g. "free will," "moral luck")
 that Notes can reference
