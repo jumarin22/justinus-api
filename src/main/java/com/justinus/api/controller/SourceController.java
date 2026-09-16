@@ -1,8 +1,11 @@
 package com.justinus.api.controller;
 
+import com.justinus.api.dto.NoteRequest;
+import com.justinus.api.dto.NoteResponse;
 import com.justinus.api.dto.SourcePatchRequest;
 import com.justinus.api.dto.SourceRequest;
 import com.justinus.api.dto.SourceResponse;
+import com.justinus.api.service.NoteService;
 import com.justinus.api.service.SourceService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -22,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SourceController {
 
     private final SourceService sourceService;
+    private final NoteService noteService;
 
-    public SourceController(SourceService sourceService) {
+    public SourceController(SourceService sourceService, NoteService noteService) {
         this.sourceService = sourceService;
+        this.noteService = noteService;
     }
 
     @GetMapping
@@ -45,5 +50,15 @@ public class SourceController {
     @PatchMapping("/{id}")
     public SourceResponse patch(@PathVariable Long id, @Valid @RequestBody SourcePatchRequest request) {
         return sourceService.patch(id, request);
+    }
+
+    @GetMapping("/{id}/notes")
+    public PagedModel<NoteResponse> listNotes(@PathVariable Long id, Pageable pageable) {
+        return new PagedModel<>(noteService.listBySource(id, pageable));
+    }
+
+    @PostMapping("/{id}/notes")
+    public ResponseEntity<NoteResponse> createNote(@PathVariable Long id, @Valid @RequestBody NoteRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(noteService.create(id, request));
     }
 }

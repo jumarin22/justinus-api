@@ -56,6 +56,11 @@ public class NoteService {
         return noteRepository.findAll(pageable).map(NoteResponse::from);
     }
 
+    public Page<NoteResponse> listBySource(Long sourceId, Pageable pageable) {
+        sourceService.findOrThrow(sourceId);
+        return noteRepository.findBySourceId(sourceId, pageable).map(NoteResponse::from);
+    }
+
     private Note findOrThrow(Long id) {
         return noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
