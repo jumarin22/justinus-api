@@ -61,12 +61,21 @@ lost, only redirected.
    mutating is required, verified empirically with a throwaway
    before/after experiment against the live Neo4j container, not
    assumed from how the old JPA version worked.
-6. **Source controller** — wire up `GET/POST /sources`,
-   `GET/PATCH /sources/{id}`. Verify manually with curl.
-7. **Validation + error handling** — Bean Validation on the request DTO,
-   `GlobalExceptionHandler` + `ErrorResponse` (both fully reusable from
-   the old build, unaffected by the pivot), decide PATCH semantics
-   (partial update) together.
+6. **Source controller** -- **done, verified.** `GET/POST /sources`,
+   `GET/PATCH /sources/{id}` wired up (the `/sources/{id}/notes` routes
+   from the old controller come back in step 11, once `NoteService`
+   exists again). Verified with real curl requests against the live
+   app + Neo4j: create, get, list (paginated), patch -- and the patch
+   re-fetched afterward on a separate request to confirm it actually
+   persisted, not just that the response looked right.
+7. **Validation + error handling** -- **done, verified as a side effect
+   of step 6's curl pass.** `GlobalExceptionHandler` + `ErrorResponse`
+   + Bean Validation on `SourceRequest` were untouched by the pivot and
+   didn't need rebuilding -- confirmed directly: a `POST` with a blank
+   body returned `400` with real per-field validation messages, and a
+   `GET` on a nonexistent id returned `404`. PATCH semantics (partial
+   update, no way to explicitly null a field) already decided and
+   carried over unchanged from the original build.
 8. **First integration test** — Testcontainers Neo4j base class, one
    real test against Source (create/get/list/patch, validation, error
    handling all verified manually via curl in step 7 -- this locks that
