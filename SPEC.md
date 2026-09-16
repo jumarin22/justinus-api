@@ -32,7 +32,7 @@ especially.
   `/actuator/health` is exposed over HTTP by default.
 - springdoc-openapi (Swagger UI) — planned addition, not yet added.
   Useful for manually poking at the API as it grows, on top of the
-  Bruno collection. The sibling `springer` project already does this.
+  Bruno collection.
 - Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
   no manual import needed) for integration tests against real Postgres.
   **Verified working**, but it took four real fixes to get there:
