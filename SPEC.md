@@ -2,16 +2,13 @@
 
 Build a Spring Boot backend for a personal knowledge-tracking system —
 tracks what I read (books, articles, papers) and the ideas/connections
-between them. Think lightweight Zettelkasten/PKM engine, not a toy CRUD app.
+between them -- a lightweight Zettelkasten/PKM engine.
 
-This is also a deliberate learning exercise: an opportunity to actually
-practice real relationship modeling, tagging, and querying patterns
-correctly — not just log some books the fastest way possible. GitHub
-visibility is a side effect of doing the work, not the point of it.
-That framing should bias design decisions below whenever there's a
-choice between "simplest to build" and "the correct/idiomatic way" —
-see the Tag and Link notes especially. The goal is executing best
-practices for real, not performing them for an audience.
+This is also a deliberate learning exercise: practicing relationship
+modeling, tagging, and querying patterns correctly. That should bias
+design decisions below toward the correct/idiomatic way over the
+simplest way to build something — see the Tag and Link notes
+especially.
 
 ## Stack
 
@@ -33,10 +30,9 @@ practices for real, not performing them for an audience.
     crash-loops on startup.
 - Spring Boot Actuator — added mid-build, not originally planned. Only
   `/actuator/health` is exposed over HTTP by default.
-- springdoc-openapi (Swagger UI) — planned addition, not yet added. Not
-  for show — genuinely useful for manually poking at your own API as it
-  grows, on top of the Bruno collection. The sibling `springer` project
-  already does this.
+- springdoc-openapi (Swagger UI) — planned addition, not yet added.
+  Useful for manually poking at the API as it grows, on top of the
+  Bruno collection. The sibling `springer` project already does this.
 - Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
   no manual import needed) for integration tests against real Postgres.
   **Verified working**, but it took four real fixes to get there:

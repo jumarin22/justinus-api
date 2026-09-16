@@ -2,8 +2,8 @@
 
 A personal knowledge-tracking backend -- tracks what I read (books,
 articles, papers) and the ideas/connections between them. A lightweight
-Zettelkasten/PKM engine, not a CRUD toy. See `SPEC.md` for the full
-design rationale and `BUILD_PLAN.md` for the step-by-step build log.
+Zettelkasten/PKM engine. See `SPEC.md` for the full design rationale
+and `BUILD_PLAN.md` for the step-by-step build log.
 
 Currently implemented: **Source**, end-to-end (entity, migration,
 repository, service, controller, validation, error handling,
