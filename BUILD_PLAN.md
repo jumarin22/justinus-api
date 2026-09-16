@@ -97,12 +97,22 @@ lost, only redirected.
 (repeats the same shape as Source, faster since the pattern's
 established -- except Note also brings in Tag, which Source didn't need)
 
-9. **Note + Tag nodes, relationships** — `Note` and `Tag` as `@Node`
-   entities; `(Note)-[:FROM_SOURCE]->(Source)` and
-   `(Note)-[:TAGGED]->(Tag)` as real graph relationships, no join
-   tables. Tag's `nameLower` property + `IS UNIQUE` constraint (decided
-   in `SPEC.md`) gets written here, before Note's migration touches
-   Tag at all -- same sequencing discipline the original plan used.
+9. **Note + Tag nodes, relationships** -- **done, verified.** `Note`
+   and `Tag` as `@Node` entities, `@Relationship`-annotated fields for
+   `(Note)-[:FROM_SOURCE]->(Source)` and `(Note)-[:TAGGED]->(Tag)` --
+   no join tables. `V2__tag_name_lower_unique.cypher` adds the real
+   `IS UNIQUE` constraint on `Tag.nameLower` decided in `SPEC.md`.
+   Verified for real, not assumed: reloaded a saved `Note` and
+   confirmed both relationships actually traverse (`note.getSource()`,
+   `note.getTags()`); confirmed `NoteRepository.findBySourceId` derives
+   correctly across the relationship; confirmed
+   `TagRepository.findByNameLower` finds "Stoicism" via a
+   lowercase-input lookup; and confirmed the constraint is real by
+   deliberately trying to save a second Tag with a colliding
+   `nameLower` ("STOICISM" after "Stoicism") and catching the resulting
+   `DataIntegrityViolationException` -- then checked `SHOW CONSTRAINTS`
+   and a direct relationship query in `cypher-shell` to see both the
+   constraint and the real graph edges, not just trust the app log.
 10. **Note DTOs + service** — including the
     sourceId-required-on-top-level-create decision (still applies,
     pivot-independent), and how tags get attached when creating a Note
