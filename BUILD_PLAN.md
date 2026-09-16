@@ -52,8 +52,15 @@ lost, only redirected.
    `CommandLineRunner` saved and reloaded a real `Source` against the
    live Neo4j container, confirmed both via app logs and a direct
    `cypher-shell` query, then was reverted -- not left in the codebase.
-5. **Source DTOs + service** — request/response records, business logic
-   (create, get, list), separate from the node entity.
+5. **Source DTOs + service** -- **done, verified.** Request/response
+   records (`SourceRequest`/`SourceResponse`/`SourcePatchRequest`)
+   mostly carried over unchanged from the pivot (`String` ids,
+   `Integer` rating). Real gotcha caught and fixed in
+   `SourceService.patch()`: SDN has no JPA-style dirty checking (see
+   `SPEC.md`) -- an explicit `sourceRepository.save(source)` after
+   mutating is required, verified empirically with a throwaway
+   before/after experiment against the live Neo4j container, not
+   assumed from how the old JPA version worked.
 6. **Source controller** — wire up `GET/POST /sources`,
    `GET/PATCH /sources/{id}`. Verify manually with curl.
 7. **Validation + error handling** — Bean Validation on the request DTO,

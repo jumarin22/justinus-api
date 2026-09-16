@@ -94,6 +94,20 @@ though `com.fasterxml.jackson.core` low-level types stick around).
 Don't copy-paste Jackson imports from Spring Boot 3.x-era code without
 checking they still resolve.
 
+Known gotcha, specific to the pivot: **Spring Data Neo4j has no
+JPA-style dirty checking.** Hibernate's persistence context tracks
+changes to a managed entity and flushes them automatically at
+transaction commit -- mutating a loaded entity's fields via setters
+inside a `@Transactional` method is enough, no explicit save call
+needed. SDN has no equivalent persistence-context tracking: mutating a
+loaded `@Node` entity and returning without an explicit
+`repository.save(entity)` call silently does nothing to the database --
+no error, no warning. Verified empirically (not just read about) via a
+throwaway experiment: patched a `Source`'s title without calling
+`save()`, reloaded it, confirmed the change never happened; called
+`save()` explicitly, reloaded again, confirmed it did. This directly
+affects any PATCH-style partial update -- see `SourceService.patch()`.
+
 ## Core entities
 
 Everything below is a graph node (`@Node`) connected by typed
