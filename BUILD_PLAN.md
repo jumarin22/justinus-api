@@ -58,3 +58,38 @@ search are a separate round after this slice is solid.
 ## Wrap-up for this slice
 
 13. **README** — what it is, how to run it, API shape.
+
+**Source + Note slice: complete.** All 13 steps done, everything
+verified for real (curl/psql/Testcontainers, not assumed), every
+gotcha hit along the way documented in `SPEC.md` rather than left to
+be rediscovered.
+
+## Next round: Concept + Link (not started)
+
+Don't just continue this list at step 14 -- start with a fresh
+planning pass, the same way this file did for Source + Note. A few
+things already decided in `SPEC.md` that the next planning pass should
+build from rather than re-litigate:
+
+- **Link is the entity worth the most design attention**, not
+  "whichever's simplest to implement." The open question is still
+  unresolved: is it a single polymorphic table (`targetType` +
+  `fromId`/`toId` as plain bigints, no DB-level FK integrity possible
+  across two target tables) or separate `NoteLink`/`ConceptLink`
+  tables (real FKs, more tables)? This needs an actual decision before
+  the migration gets written, the way Tag's case-insensitive
+  uniqueness got decided before Note's migration did.
+- **Concept** is more straightforward -- a plain many-to-many with
+  Note, no polymorphism. See `SPEC.md`'s Core entities section for the
+  exact field list.
+- **`GET /concepts/{id}/graph`** should be a real depth-limited
+  traversal (Postgres `WITH RECURSIVE`), not a single-level join --
+  already specified in `SPEC.md`'s Endpoints section, not yet designed
+  in any detail.
+- **`GET /search`** should use real Postgres full-text search
+  (`tsvector` + GIN index + `ts_rank`), not `LIKE`/`ILIKE` -- same
+  status, specified but not designed.
+- Given the sequencing-risk note in `SPEC.md`: this is where the real
+  learning value in the project lives. Worth giving it the same
+  unhurried, fully-verified pace as Source + Note got, not a rushed
+  afterthought.
