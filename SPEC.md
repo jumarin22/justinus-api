@@ -35,7 +35,7 @@ especially.
   Bruno collection.
 - Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
   no manual import needed) for integration tests against real Postgres.
-  **Verified working**, but it took five real fixes to get there:
+  **Verified working.** Getting there required:
   - Testcontainers 2.x renamed every module artifact with a
     `testcontainers-` prefix: `org.testcontainers:junit-jupiter` is now
     `org.testcontainers:testcontainers-junit-jupiter`,
