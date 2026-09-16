@@ -35,7 +35,7 @@ especially.
   Bruno collection.
 - Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
   no manual import needed) for integration tests against real Postgres.
-  **Verified working**, but it took four real fixes to get there:
+  **Verified working**, but it took five real fixes to get there:
   - Testcontainers 2.x renamed every module artifact with a
     `testcontainers-` prefix: `org.testcontainers:junit-jupiter` is now
     `org.testcontainers:testcontainers-junit-jupiter`,
@@ -73,6 +73,19 @@ especially.
     (Surefire) -- that's a real Maven naming convention, not a Spring
     Boot 4 quirk, but worth stating since nothing else in this project
     needed the distinction before now.
+  - **Don't use `@Testcontainers`/`@Container` once there's more than
+    one `*IT` class.** Those JUnit lifecycle annotations stop the
+    container after each test class and start a fresh one (new port)
+    for the next. Spring's test framework then reuses its cached
+    `ApplicationContext` across classes whose config looks identical --
+    which still points at the old, now-dead container's port. Every
+    request in the second class fails with `Connection refused`, and
+    it looks like a hang (the retry loop underneath makes it take
+    minutes to finally fail) rather than an obvious error. Fix: skip
+    those annotations entirely and start a true singleton container in
+    a static initializer instead, shared for the whole test JVM run.
+    `@ServiceConnection` still works fine on a manually-started
+    container -- it doesn't care who calls `.start()`.
 - Maven
 - Bean Validation (Jakarta Validation 3.1) for request validation
 - Clean layered architecture: controller -> service -> repository, with
