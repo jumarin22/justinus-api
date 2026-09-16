@@ -39,11 +39,19 @@ lost, only redirected.
 
 ## Source, end to end
 
-4. **Source node + repository** — `@Node` entity, SDN repository.
-   Verify it actually reads/writes against the real Neo4j instance (a
-   quick throwaway check, not full tests yet). `rating` goes back to a
-   plain `Integer` here (see `SPEC.md` -- the `Short` requirement was
-   Postgres-specific and doesn't apply anymore).
+4. **Source node + repository** -- **done, verified.** `@Node` entity,
+   `Neo4jRepository<Source, String>`. `rating` is back to a plain
+   `Integer` (the `Short` requirement was Postgres-specific and doesn't
+   apply anymore). Real decision made and verified here, not deferred:
+   ids are UUID strings via `UUIDStringGenerator`, not Neo4j's internal
+   id -- confirmed against SDN's own reference docs (which explicitly
+   warn against the `Long`/internal-id default for production) and
+   against the actual bytecode of `UUIDStringGenerator` in the SDN jar
+   (`IdGenerator<String>`) after two fetched doc pages gave conflicting
+   answers about whether it targets `String` or `UUID`. A throwaway
+   `CommandLineRunner` saved and reloaded a real `Source` against the
+   live Neo4j container, confirmed both via app logs and a direct
+   `cypher-shell` query, then was reverted -- not left in the codebase.
 5. **Source DTOs + service** — request/response records, business logic
    (create, get, list), separate from the node entity.
 6. **Source controller** — wire up `GET/POST /sources`,

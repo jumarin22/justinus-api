@@ -99,6 +99,16 @@ checking they still resolve.
 Everything below is a graph node (`@Node`) connected by typed
 relationships, not a table joined by foreign keys.
 
+**All ids are UUID strings** (`@Id @GeneratedValue(UUIDStringGenerator.class) private String id;`),
+not Neo4j's internal numeric id. Decided against Spring Data Neo4j's
+own reference documentation, which explicitly recommends against the
+`Long`/internal-id default for production use -- it's tied to the
+database's storage lifecycle, not the application's, and isn't
+guaranteed unique/stable the way an application-owned identifier is.
+This ripples through every DTO and `@PathVariable` (`String`, not
+`Long`) and every URL (`/sources/3fa85f64-...`, not `/sources/1`) --
+verified for real on Source in BUILD_PLAN step 4, not just read about.
+
 **Source** — something I read
 - id, title, author, type (BOOK / ARTICLE / PAPER), dateStarted,
   dateFinished (nullable), status (READING / FINISHED / ABANDONED),

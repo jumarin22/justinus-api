@@ -1,12 +1,13 @@
 package com.justinus.api.dto;
 
+import com.justinus.api.domain.Source;
 import com.justinus.api.domain.SourceStatus;
 import com.justinus.api.domain.SourceType;
 
 import java.time.LocalDate;
 
 public record SourceResponse(
-        Long id,
+        String id,
         String title,
         String author,
         SourceType type,
@@ -16,6 +17,17 @@ public record SourceResponse(
         Integer rating,
         String generalNotes
 ) {
-    // from(Source) removed with the old JPA entity in the Neo4j pivot --
-    // re-added against the new @Node Source in BUILD_PLAN step 5.
+    public static SourceResponse from(Source source) {
+        return new SourceResponse(
+                source.getId(),
+                source.getTitle(),
+                source.getAuthor(),
+                source.getType(),
+                source.getDateStarted(),
+                source.getDateFinished(),
+                source.getStatus(),
+                source.getRating(),
+                source.getGeneralNotes()
+        );
+    }
 }
