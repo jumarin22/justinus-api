@@ -19,6 +19,13 @@
 
   <properties>
     <java.version>25</java.version>
+    <!--
+      Spring Boot 4.1.1 manages tomcat.version=11.0.24, which has three
+      CRITICAL CVEs (CVE-2026-65182, CVE-2026-65905, CVE-2026-68525)
+      fixed in 11.0.25. No newer 4.1.x Spring Boot patch exists yet to
+      pick this up automatically, so override directly until one does.
+    -->
+    <tomcat.version>11.0.25</tomcat.version>
   </properties>
 
   <dependencies>

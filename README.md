@@ -163,6 +163,25 @@ curl -X POST localhost:8080/sources/1/notes \
 Spring Boot Actuator is included; `GET /actuator/health` reports `UP`
 (only `health` is exposed over HTTP by default).
 
+## Vulnerability scanning
+
+- **GitHub Dependabot alerts** are enabled on the repo -- automatic,
+  no local setup, flags known-CVE dependency versions and can open
+  fix PRs.
+- **[Trivy](https://github.com/aquasecurity/trivy)** for an on-demand
+  local scan against the current `pom.xml`:
+  ```bash
+  trivy fs --scanners vuln .
+  ```
+  No API key or account needed. This is how the CVE-2026-65182/
+  CVE-2026-65905/CVE-2026-68525 Tomcat vulnerabilities (fixed via the
+  `tomcat.version` override in `pom.xml`) were actually found.
+- OWASP Dependency-Check is a reasonable alternative but needs a free
+  NVD API key (self-service signup at
+  [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key))
+  to fetch CVE data as of v13 -- not wired up here since Trivy already
+  covers the same need with zero setup.
+
 ## Not yet built
 
 - `Concept` and `Link` entities/endpoints (see `SPEC.md`)
