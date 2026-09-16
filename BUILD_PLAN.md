@@ -142,13 +142,22 @@ established -- except Note also brings in Tag, which Source didn't need)
 
 ## Wrap-up for this slice
 
-13. **README** — rewritten for the new stack: what it is, how to run it
-    (docker-compose for Neo4j, not Postgres), the API shape (unchanged
-    at the HTTP level despite the storage swap).
+13. **README** -- **done.** Rewritten for the new stack: Neo4j/SDN in
+    the Stack section, docker-compose/bolt/browser instructions, the
+    UUID-string-id note in the API shape section, curl examples updated
+    to not hardcode a numeric id, the benign `property key does not
+    exist` test warning explained so it isn't mistaken for a bug, and
+    the Concept/Link "not yet built" section updated to reflect the
+    single-`LINKS_TO`-relationship design instead of the old
+    polymorphic-table one.
 
-**Source + Note slice: complete once all 13 steps are done and verified
-for real** (cypher-shell/curl/Testcontainers, not assumed) -- same bar
-the original Postgres build held itself to.
+**Source + Note slice: complete.** All 13 steps done and verified for
+real (cypher-shell/curl/`mvn verify` against a live Neo4j container,
+never assumed) -- same bar the original Postgres build held itself to.
+`mvn verify` runs 15 tests, all passing. Every real gotcha hit along
+the way (stale migrations-library version, no JPA-style dirty
+checking, Neo4j's schema-optional-per-property warning) is documented
+in `SPEC.md` rather than left to be rediscovered.
 
 ## Next round: Concept + Link (not started)
 
