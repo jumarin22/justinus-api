@@ -29,19 +29,31 @@ search are a separate round after this slice is solid.
    `GlobalExceptionHandler` + `ErrorResponse`, decide the PATCH semantics
    (partial update) together.
 8. **First integration test** — Testcontainers base class, one real test
-   against Source. This is where the whole stack (Flyway + JPA +
-   Postgres + Testcontainers) gets proven together, before it's buried
-   under more code.
+   against Source (now fully done: create/get/list/patch, validation,
+   error handling all verified manually via curl in step 7 -- this is
+   about locking that behavior in with an automated test, not verifying
+   it for the first time). This is where the whole stack (Flyway + JPA +
+   Postgres + Testcontainers) gets proven together, deliberately done
+   now, before Note adds more surface area to test.
 
 ## Note, end to end
 
-(repeats the same shape as Source, faster since the pattern's established)
+(repeats the same shape as Source, faster since the pattern's established
+-- except Note also brings in Tag, which Source didn't need)
 
-9. **Note migration + entity + repository**
+9. **Note + Tag migration, entities, repositories** — `notes` table,
+   `tags` table, and a `note_tags` join table for the many-to-many
+   (per the spec reframe: a real Tag entity, not a string array). Three
+   entities/repos total: `Note`, `Tag`, plus the join is handled by the
+   `@ManyToMany` mapping itself.
 10. **Note DTOs + service** — including the
-    sourceId-required-on-top-level-create decision
+    sourceId-required-on-top-level-create decision, and how tags get
+    attached when creating a Note (find-existing-or-create-new Tag by
+    name, not requiring the caller to already know tag ids)
 11. **Note controller** — both `/notes` and `/sources/{id}/notes` routes
-12. **Note integration tests**
+12. **Note integration tests** — including at least one test that
+    exercises tags (reusing an existing tag, not just creating notes
+    with no tags)
 
 ## Wrap-up for this slice
 
