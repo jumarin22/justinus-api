@@ -3,9 +3,9 @@ services:
     image: postgres:18-alpine
     container_name: justinus-api-postgres
     environment:
-      POSTGRES_DB: justinus
-      POSTGRES_USER: justinus
-      POSTGRES_PASSWORD: justinus
+      POSTGRES_DB: ${POSTGRES_DB:-justinus}
+      POSTGRES_USER: ${POSTGRES_USER:-justinus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-justinus}
     ports:
       - "5432:5432"
     volumes:

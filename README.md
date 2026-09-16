@@ -34,6 +34,12 @@ mvn spring-boot:run           # runs the app on localhost:8080
 Flyway runs migrations automatically on startup against the `justinus`
 database (`src/main/resources/db/migration`).
 
+DB name/user/password default to `justinus`/`justinus`/`justinus` for
+zero-setup local dev, via `${POSTGRES_DB:-justinus}`-style env var
+substitution in both `docker-compose.yml` and `application.yml` --
+override `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` for
+anything beyond local dev instead of editing either file.
+
 ## Running tests
 
 Integration tests (`*IT.java`) use **Failsafe**, not Surefire -- run
