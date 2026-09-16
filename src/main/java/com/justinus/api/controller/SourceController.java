@@ -3,8 +3,8 @@ package com.justinus.api.controller;
 import com.justinus.api.dto.SourceRequest;
 import com.justinus.api.dto.SourceResponse;
 import com.justinus.api.service.SourceService;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,8 +25,8 @@ public class SourceController {
     }
 
     @GetMapping
-    public Page<SourceResponse> list(Pageable pageable) {
-        return sourceService.list(pageable);
+    public PagedModel<SourceResponse> list(Pageable pageable) {
+        return new PagedModel<>(sourceService.list(pageable));
     }
 
     @PostMapping

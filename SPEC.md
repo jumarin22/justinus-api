@@ -22,8 +22,15 @@ between them. Think lightweight Zettelkasten/PKM engine, not a toy CRUD app.
   - Postgres 18's Docker image also changed its volume convention: mount
     at `/var/lib/postgresql`, not `.../data`, or the container
     crash-loops on startup.
-- Testcontainers (2.x BOM) for integration tests against real Postgres
-- Maven (or Gradle — your call, pick one and be consistent)
+- Spring Boot Actuator — added mid-build, not originally planned. Only
+  `/actuator/health` is exposed over HTTP by default.
+- Testcontainers (2.x BOM) for integration tests against real Postgres —
+  **expected to work, not yet verified** against Spring Boot 4.1.x. Both
+  Flyway and Actuator had their own Spring Boot 4-specific surprises
+  (one broke silently, one didn't); don't assume Testcontainers
+  integration will be friction-free just because a compatible version
+  exists on Maven Central.
+- Maven
 - Bean Validation (Jakarta Validation 3.1) for request validation
 - Clean layered architecture: controller -> service -> repository, with
   DTOs separate from JPA entities (no leaking entities through the API)
@@ -39,7 +46,11 @@ Spring Boot 3.x-era code without checking they still resolve.
 **Source** — something I read
 - id, title, author, type (BOOK / ARTICLE / PAPER), dateStarted,
   dateFinished (nullable), status (READING / FINISHED / ABANDONED),
-  rating (nullable), generalNotes (nullable)
+  rating (nullable, 1-5), generalNotes (nullable)
+- Gotcha already hit: `rating` is `SMALLINT` in the migration, which
+  means the Java field must be `Short`, not `Integer` — Hibernate's
+  schema validation treats those as different SQL types and fails
+  loudly (correctly) if they don't match.
 
 **Note** — an atomic idea or excerpt tied to a Source
 - id, sourceId (FK), content, locationRef (e.g. page number, nullable),
