@@ -25,12 +25,17 @@ lost, only redirected.
 2. **Local Neo4j** — confirm the app can reach it (Neo4j Browser or
    `cypher-shell`, no app code yet), the same "prove the DB is
    reachable before building on it" step the Postgres plan used.
-3. **First migration** — get `neo4j-migrations` actually running end to
-   end with a minimal Cypher script, verified by checking the
-   migrations history subgraph it maintains, not just "it compiled."
-   This is the step flagged in `SPEC.md` as **not yet verified working**
-   -- treat it with the same suspicion the Flyway autoconfiguration
-   gotcha earned the first time around.
+3. **First migration** -- **done, verified.** `V1__baseline.cypher`
+   (deliberately minimal, `RETURN 1;` -- no real schema exists yet)
+   applied cleanly and shows up as a `__Neo4jMigration` node when
+   queried directly. Real gotcha hit and documented in `SPEC.md`: the
+   originally-pinned `neo4j-migrations-spring-boot-starter` version
+   (`2.0.3`) silently never ran (a `@ConditionalOnBean(Driver.class)`
+   check failed) because it was a stale version claim, not an actual
+   Spring Boot 4 incompatibility -- `4.2.0` fixed it outright. The next
+   real migration (Tag's `nameLower` constraint) lands in step 9, not
+   before -- don't add speculative constraints to this file in the
+   meantime just because the runner is proven to work now.
 
 ## Source, end to end
 

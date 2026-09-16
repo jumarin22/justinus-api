@@ -38,10 +38,22 @@ especially.
   Chosen specifically to preserve the "versioned migration files
   checked into git" discipline Flyway gave the Postgres build, rather
   than letting SDN silently auto-create indexes with no history.
-  **Not yet verified working in this project** — first thing to prove
-  in the skeleton step, the same way Flyway's autoconfiguration gotcha
-  was only ever caught by testing it for real, never by assuming the
-  docs were the whole story.
+  **Verified working** (a real migration applies and shows up as a
+  `__Neo4jMigration` node when queried directly, not just "the log
+  looked fine") -- but only after a real gotcha:
+  - **Pin `4.2.0`, not `2.0.3`.** An earlier web search claimed `2.0.3`
+    was "the latest version" -- it wasn't (Maven Central's actual
+    metadata shows `4.2.0` current, `2.0.3` is from January 2023). That
+    stale search result nearly became a real bug: on `2.0.3`, Spring
+    Boot's `--debug` autoconfiguration report showed
+    `MigrationsAutoConfiguration`'s `@ConditionalOnBean(Driver.class)`
+    silently failing to find the Neo4j driver bean, so the migration
+    runner never ran at all -- no error, no log line, exactly the
+    failure shape the old Flyway autoconfiguration gotcha had. Bumping
+    to `4.2.0` fixed it outright, no other change needed. Lesson worth
+    generalizing: a search result claiming "X is the latest version"
+    is a claim to verify against the registry directly (Maven Central,
+    npm, etc.), not a fact to build on.
 - Spring Boot Actuator — unaffected by the pivot, `/actuator/health`
   still exposed.
 - springdoc-openapi (Swagger UI) — still planned, not yet added,
