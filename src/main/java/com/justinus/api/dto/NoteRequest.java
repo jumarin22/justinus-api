@@ -15,7 +15,7 @@ import java.util.List;
  * to know a tag's id up front.
  */
 public record NoteRequest(
-        Long sourceId,
+        String sourceId,
         @NotBlank String content,
         String locationRef,
         List<String> tags

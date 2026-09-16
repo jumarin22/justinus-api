@@ -113,15 +113,32 @@ established -- except Note also brings in Tag, which Source didn't need)
    `DataIntegrityViolationException` -- then checked `SHOW CONSTRAINTS`
    and a direct relationship query in `cypher-shell` to see both the
    constraint and the real graph edges, not just trust the app log.
-10. **Note DTOs + service** — including the
-    sourceId-required-on-top-level-create decision (still applies,
-    pivot-independent), and how tags get attached when creating a Note
-    (find-existing-or-create-new Tag by `nameLower`, not requiring the
-    caller to already know a tag's id).
-11. **Note controller** — both `/notes` and `/sources/{id}/notes` routes.
-12. **Note integration tests** — including at least one test that
-    exercises tags (reusing an existing tag via its `nameLower` lookup,
-    not just creating notes with no tags).
+10. **Note DTOs + service** -- **done, verified.**
+    `NoteRequest`/`NoteResponse` updated to `String` ids;
+    `NoteResponse.from(Note)` restored. `sourceId`-required-on-
+    top-level-create carried over unchanged. Tag resolution now looks
+    up by `nameLower` (not `findByNameIgnoreCase` as the old JPA
+    version did) -- deliberately matching the property the real
+    uniqueness constraint targets, rather than introducing a second,
+    unconstrained way to compare names case-insensitively. Lowercases
+    the input at the call site, matching what `Tag`'s constructor
+    already does when creating one.
+11. **Note controller** -- **done, verified.** Both `/notes` and
+    `/sources/{id}/notes` routes wired up (the latter required adding
+    `NoteService` back into `SourceController`'s constructor). Verified
+    with curl: nested create, top-level create, missing-sourceId 400,
+    missing-content 400, 404 on both create-under-unknown-source and
+    list-under-unknown-source, paginated list, and tag reuse --
+    creating a second note with `"stoicism"` (different case) correctly
+    reused the existing `"Stoicism"` tag rather than duplicating it,
+    confirmed by querying `Tag` nodes directly in `cypher-shell`
+    (exactly 3 tags total, not 4).
+12. **Note integration tests** -- **done, verified.** `NoteControllerIT`
+    ported from the old Postgres version (ids adapted to `String`),
+    covering everything curl-verified in step 11 including the tag
+    case-insensitive-reuse test (asserts exact tag count, not just "no
+    error"). `mvn verify` now runs 15 tests total (7 Source + 8 Note),
+    all passing.
 
 ## Wrap-up for this slice
 
