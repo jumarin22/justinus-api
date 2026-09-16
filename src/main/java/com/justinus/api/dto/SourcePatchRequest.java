@@ -20,7 +20,7 @@ public record SourcePatchRequest(
         LocalDate dateStarted,
         LocalDate dateFinished,
         SourceStatus status,
-        @Min(1) @Max(5) Short rating,
+        @Min(1) @Max(5) Integer rating,
         String generalNotes
 ) {
 }

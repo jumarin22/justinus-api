@@ -4,7 +4,7 @@ Build a Spring Boot backend for a personal knowledge-tracking system —
 tracks what I read (books, articles, papers) and the ideas/connections
 between them -- a lightweight Zettelkasten/PKM engine.
 
-This is also a deliberate learning exercise: practicing relationship
+This is also a deliberate learning exercise: practicing graph data
 modeling, tagging, and querying patterns correctly. That should bias
 design decisions below toward the correct/idiomatic way over the
 simplest way to build something — see the Tag and Link notes
@@ -14,141 +14,149 @@ especially.
 
 - Java 25 (LTS)
 - Spring Boot 4.1.x, Spring Framework 7.x
-- Spring Data JPA + PostgreSQL 18
-- Flyway for migrations (no auto-DDL in prod profile). Two gotchas that
-  cost real debugging time on Spring Boot 4.x:
-  - Spring Boot 4's autoconfiguration got split per-feature into separate
-    artifacts. `spring-boot-starter-jdbc` alone does NOT pull in Flyway
-    autoconfiguration anymore — you need `org.springframework.boot:
-    spring-boot-flyway` explicitly, or Flyway silently never runs (no
-    error, no log line, migrations just don't happen).
-  - Flyway 10+ also needs the Postgres dialect as its own artifact
-    (`flyway-database-postgresql`) alongside `flyway-core`, or migrations
-    fail against Postgres with an "unsupported database" error.
-  - Postgres 18's Docker image also changed its volume convention: mount
-    at `/var/lib/postgresql`, not `.../data`, or the container
-    crash-loops on startup.
-- Spring Boot Actuator — added mid-build, not originally planned. Only
-  `/actuator/health` is exposed over HTTP by default.
-- springdoc-openapi (Swagger UI) — planned addition, not yet added.
-  Useful for manually poking at the API as it grows, on top of the
-  Bruno collection.
-- Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
-  no manual import needed) for integration tests against real Postgres.
-  **Verified working.** Getting there required:
-  - Testcontainers 2.x renamed every module artifact with a
-    `testcontainers-` prefix: `org.testcontainers:junit-jupiter` is now
-    `org.testcontainers:testcontainers-junit-jupiter`,
-    `org.testcontainers:postgresql` is now
-    `org.testcontainers:testcontainers-postgresql`. The old coordinates
-    just fail dependency resolution with a missing-version error.
-  - `PostgreSQLContainer` is no longer generic in 2.x (dropped the
-    self-referential type parameter) -- `new PostgreSQLContainer<>(...)`
-    doesn't compile anymore, it's just `new PostgreSQLContainer(...)`.
-  - `@AutoConfigureMockMvc` moved out of `spring-boot-test-autoconfigure`
-    into its own module, `spring-boot-webmvc-test`
-    (`org.springframework.boot.webmvc.test.autoconfigure` package) --
-    same per-feature module split pattern as Flyway, just hitting a
-    different corner of the stack.
-  - Jackson 3 (see the gotcha below) means test code needs
-    `tools.jackson.databind.ObjectMapper`, not
-    `com.fasterxml.jackson.databind.ObjectMapper`, if it autowires one.
-  - Use Spring Boot's own `spring-boot-testcontainers` module and
-    `@ServiceConnection` on the container field instead of manual
-    `@DynamicPropertySource` -- less boilerplate, and it's the
-    currently-recommended pattern.
-  - **Machine-specific, not project-specific:** if the local Docker
-    runtime is Colima (or another lightweight/VM-based runtime, common
-    in CI too) rather than Docker Desktop, two more things are needed:
-    `docker.host=unix:///path/to/colima/docker.sock` in
-    `~/.testcontainers.properties` (machine-level, not checked in --
-    Colima's socket path isn't portable across machines), and
-    `TESTCONTAINERS_RYUK_DISABLED=true` as an environment variable
-    (env-var-only, no properties-file equivalent) because Ryuk's
-    cleanup container tries to bind-mount the Docker socket path in a
-    way that doesn't translate into Colima's Linux VM. This one *is*
-    checked in, via the `maven-failsafe-plugin` config in `pom.xml`,
-    since it's a runtime-class problem, not a personal-machine one.
-  - `*IT.java` classes need `mvn verify` (Failsafe), not `mvn test`
-    (Surefire) -- that's a real Maven naming convention, not a Spring
-    Boot 4 quirk, but worth stating since nothing else in this project
-    needed the distinction before now.
+- **Spring Data Neo4j (SDN) + Neo4j 5.x** — not a relational database.
+  **Pivoted from Postgres/JPA after Source + Note were already fully
+  built and tested** (see git history for the working Postgres-era
+  code). The trigger: once Link's design settled on "anything can link
+  to anything" (Obsidian/Zettelkasten-style, no fixed taxonomy of what
+  can connect to what), that stopped being a relational-modeling
+  exercise worth solving in SQL — nodes and typed relationships are
+  Neo4j's native data model, not a workaround bolted onto one. Source
+  and Note get rebuilt as graph nodes too, not just Concept + Link, so
+  the whole app lives in one consistent model rather than a polyglot
+  split.
+  - `spring-boot-starter-data-neo4j` — confirmed on Maven Central at
+    `4.0.1`, versioned in lockstep with Spring Boot 4.1.x the same way
+    `spring-boot-flyway` was for the old stack.
+  - Neo4j 5.x Community Edition, run via Docker — same role Postgres
+    played: a real local instance to build and test against, not an
+    embedded/in-memory stand-in.
+- **neo4j-migrations-spring-boot-starter** for versioned schema
+  migrations (constraints, indexes) — a real library (Michael Simons,
+  "inspired by Flyway"), Cypher scripts under
+  `classpath:neo4j/migrations` instead of SQL under `db/migration`.
+  Chosen specifically to preserve the "versioned migration files
+  checked into git" discipline Flyway gave the Postgres build, rather
+  than letting SDN silently auto-create indexes with no history.
+  **Not yet verified working in this project** — first thing to prove
+  in the skeleton step, the same way Flyway's autoconfiguration gotcha
+  was only ever caught by testing it for real, never by assuming the
+  docs were the whole story.
+- Spring Boot Actuator — unaffected by the pivot, `/actuator/health`
+  still exposed.
+- springdoc-openapi (Swagger UI) — still planned, not yet added,
+  unaffected by the pivot.
+- **Testcontainers Neo4j module** (`testcontainers-neo4j`) +
+  `@ServiceConnection`, replacing the Postgres module. The same 2.x
+  artifact-naming pattern already learned (every module gets a
+  `testcontainers-` prefix) should apply here too, but treat that as
+  something to verify, not assume — the Postgres setup's lessons don't
+  automatically transfer just because the pattern looks the same. The
+  Colima/Ryuk fixes below are runtime-level, not database-specific, so
+  those genuinely do carry over unchanged:
+  - `docker.host=unix:///path/to/colima/docker.sock` in
+    `~/.testcontainers.properties` (machine-level, not checked in) and
+    `TESTCONTAINERS_RYUK_DISABLED=true` as an environment variable if
+    running on Colima rather than Docker Desktop.
+  - `*IT.java` classes need `mvn verify` (Failsafe), not `mvn test`.
   - **Don't use `@Testcontainers`/`@Container` once there's more than
-    one `*IT` class.** Those JUnit lifecycle annotations stop the
-    container after each test class and start a fresh one (new port)
-    for the next. Spring's test framework then reuses its cached
-    `ApplicationContext` across classes whose config looks identical --
-    which still points at the old, now-dead container's port. Every
-    request in the second class fails with `Connection refused`, and
-    it looks like a hang (the retry loop underneath makes it take
-    minutes to finally fail) rather than an obvious error. Fix: skip
-    those annotations entirely and start a true singleton container in
-    a static initializer instead, shared for the whole test JVM run.
-    `@ServiceConnection` still works fine on a manually-started
-    container -- it doesn't care who calls `.start()`.
+    one `*IT` class** — start a true singleton container in a static
+    initializer instead, shared for the whole test JVM run, or the
+    second test class's cached `ApplicationContext` points at a dead
+    container's port and every request "hangs" with `Connection
+    refused` after a long retry loop. `@ServiceConnection` still works
+    fine on a manually-started container.
 - Maven
-- Bean Validation (Jakarta Validation 3.1) for request validation
+- Bean Validation (Jakarta Validation 3.1) for request validation —
+  unaffected by the pivot, still validates request DTOs before they
+  reach the service layer.
 - Clean layered architecture: controller -> service -> repository, with
-  DTOs separate from JPA entities (no leaking entities through the API)
+  DTOs separate from graph entities (`@Node` classes now, not JPA
+  `@Entity`) — same separation, no leaking domain objects through the
+  API.
 
-Known gotcha: Spring Framework 7 / Spring Boot 4 ship on **Jackson 3**,
-which renamed its base packages (`com.fasterxml.jackson.*` ->
-`tools.jackson.*` for the new modules, though `com.fasterxml.jackson.core`
-low-level types stick around). Don't copy-paste Jackson imports from
-Spring Boot 3.x-era code without checking they still resolve.
+Known gotcha (unaffected by the pivot, still applies): Spring Framework
+7 / Spring Boot 4 ship on **Jackson 3**, which renamed its base packages
+(`com.fasterxml.jackson.*` -> `tools.jackson.*` for the new modules,
+though `com.fasterxml.jackson.core` low-level types stick around).
+Don't copy-paste Jackson imports from Spring Boot 3.x-era code without
+checking they still resolve.
 
 ## Core entities
+
+Everything below is a graph node (`@Node`) connected by typed
+relationships, not a table joined by foreign keys.
 
 **Source** — something I read
 - id, title, author, type (BOOK / ARTICLE / PAPER), dateStarted,
   dateFinished (nullable), status (READING / FINISHED / ABANDONED),
   rating (nullable, 1-5), generalNotes (nullable)
-- Gotcha already hit: `rating` is `SMALLINT` in the migration, which
-  means the Java field must be `Short`, not `Integer` — Hibernate's
-  schema validation treats those as different SQL types and fails
-  loudly (correctly) if they don't match.
+- `rating` can go back to being a plain `Integer` -- the earlier `Short`
+  requirement was purely about matching Postgres's `SMALLINT` column
+  type under Hibernate's schema validation, a Postgres-specific
+  constraint that has no equivalent in Neo4j. Keeping `Short` anyway
+  would just be carrying forward a workaround for a problem that no
+  longer exists.
 
 **Note** — an atomic idea or excerpt tied to a Source
-- id, sourceId (FK), content, locationRef (nullable), createdAt
-- `locationRef` must be **String, not Integer**, despite the "e.g. page
-  number" phrasing this field used to have. Location references in real
-  reading material aren't always numeric -- "Book 3, Chapter 2" (see
-  the Discourses content in the Docusaurus site), a Kindle location
-  number, "§17," a URL fragment. Typing this as an int on the strength
-  of one example would break on the first non-numeric reference.
-- `createdAt` must be **`Instant` in Java / `TIMESTAMPTZ` in Postgres**,
-  not `LocalDateTime`/`TIMESTAMP`. The naive default silently drops
-  timezone info, which is a real bug magnet the moment this runs from
-  a different timezone than it was created in, or gets deployed
-  somewhere other than this laptop.
-- tags: a real **Tag** entity with a proper many-to-many, not a string
-  array/`@ElementCollection`. This was previously left as "your call" —
-  given the goal of actually learning relationship modeling, a string
-  array skips the exercise entirely rather than demonstrating it. A
-  real Tag entity also gets you tag reuse, "all notes with tag X," and
-  tag popularity queries for free.
-  - `Tag.name` should have a **unique, case-insensitive** constraint --
-    "Stoicism" and "stoicism" must not become two different tags.
-    Enforce this with a Postgres expression index
-    (`CREATE UNIQUE INDEX ... ON tags (lower(name))`) rather than
-    relying on application code to remember to lowercase before every
-    lookup.
+- id, content, locationRef (nullable), createdAt
+- No more `sourceId` FK field -- the Source relationship is now
+  `(Note)-[:FROM_SOURCE]->(Source)`, a real graph edge instead of a
+  foreign-key column.
+- `locationRef` must still be **String, not Integer** and `createdAt`
+  must still be **`Instant`, not `LocalDateTime`** -- both of these were
+  domain-correctness reasons (non-numeric location references; timezone
+  safety), not Postgres-specific ones, so they carry over unchanged.
+- tags: no more Tag entity + `note_tags` join table -- a real graph
+  edge, `(Note)-[:TAGGED]->(Tag)`. A relationship *is* the join table
+  now, which is the whole appeal of the pivot for exactly this kind of
+  association.
+  - **Resolved**: Neo4j's native uniqueness constraints only support
+    exact property equality, not expressions -- there's no direct
+    equivalent of Postgres's `CREATE UNIQUE INDEX ON tags (lower(name))`
+    trick. Falling back to "the service layer looks it up
+    case-insensitively before creating" would reintroduce exactly the
+    race condition (two concurrent creates producing "Stoicism" and
+    "stoicism" as different nodes) that the expression index existed to
+    prevent at the DB level, not just the app level. Fix: maintain a
+    `nameLower` property alongside `name`, with a real `IS UNIQUE`
+    constraint on `nameLower` -- this isn't cut for simplicity, since
+    cutting it would just trade a schema guarantee for a subtle bug.
 
 **Concept** — a recurring idea/theme (e.g. "free will," "moral luck")
 that Notes can reference
 - id, name, description (nullable)
-- many-to-many with Note
+- **Resolved: no separate many-to-many with Note.** "This note touches
+  this concept" is just a Link (`LINKS_TO {type: RELATES_TO}`), the same
+  mechanism used for everything else. Decided in favor of simplicity --
+  one relationship mechanism for the whole app rather than two
+  overlapping ones, now that relationships carry no schema cost the way
+  a second polymorphic table would have.
 
-**Link** — a directed connection between two Notes, or two Concepts.
-**This is the most valuable entity to get right, not an afterthought**
-— it's the one thing that makes this a Zettelkasten backend instead of
-a reading log with notes attached, and it's the most interesting
-relationship-modeling exercise in the whole project to actually learn
-from. Don't apply "whichever is simplest" here the way it's fine to
-elsewhere; give the polymorphic association (NOTE/CONCEPT, and possibly
-self-referential Note<->Note) real design attention.
-- id, fromId, toId, type (SUPPORTS / CONTRADICTS / EXTENDS / RELATES_TO),
-  targetType (NOTE or CONCEPT)
+**Link** — a directed, typed connection between *any two* Source, Note,
+or Concept nodes. **This is the most valuable relationship to get right,
+not an afterthought** — it's the one thing that makes this a
+Zettelkasten backend instead of a reading log with notes attached.
+
+Unlike the Postgres design, Link is **not its own node or table** --
+it's expressed as native Neo4j relationships directly between nodes,
+since a graph relationship can already connect any two node labels with
+no schema changes required (this is what dissolved the earlier
+`fromType`/`toType` polymorphic-table problem entirely -- it was a
+relational workaround for something a graph database does by default).
+- **Resolved: a single generic `:LINKS_TO` relationship type**, with a
+  `type` property (SUPPORTS / CONTRADICTS / EXTENDS / RELATES_TO)
+  carrying the semantic meaning, rather than four distinct relationship
+  types. Decided in favor of simplicity -- one code path creates and
+  queries links regardless of type ("all links touching this node" is
+  one pattern match, not a four-way union), at the minor cost that
+  Cypher queries filter on a property (`MATCH (a)-[l:LINKS_TO
+  {type: 'SUPPORTS'}]->(b)`) instead of matching a relationship label
+  directly.
+- Each `LINKS_TO` relationship needs its own `id` (an explicit property,
+  not Neo4j's internal element id, which isn't meant to be relied on as
+  a stable public identifier) and `createdAt`, so individual links stay
+  addressable via `GET /links/{id}`.
 
 ## Endpoints
 
@@ -159,30 +167,49 @@ GET/POST     /sources/{id}/notes
 
 GET/POST     /notes
 GET          /notes/{id}
-GET/POST     /notes/{id}/links
 
 GET/POST     /concepts
 GET          /concepts/{id}
 GET          /concepts/{id}/notes       # all notes touching this concept
-GET          /concepts/{id}/graph       # concept + linked concepts/notes,
-                                         # returned as {nodes: [...], edges: [...]}
+GET          /concepts/{id}/graph       # concept + everything linked to it
+                                         # (any type, any hop up to the
+                                         # limit), returned as
+                                         # {nodes: [...], edges: [...]}
                                          # for future graph visualization.
-                                         # This should be a real graph
-                                         # traversal (Postgres recursive
-                                         # CTE, `WITH RECURSIVE`), depth-
-                                         # limited (e.g. "within 2 hops"),
-                                         # not a single-level join --
-                                         # this is the most valuable
-                                         # query in the project to learn
-                                         # to do properly.
+                                         # A native Cypher variable-length
+                                         # path query (`(c)-[*1..2]-(n)`),
+                                         # depth-limited (e.g. "within 2
+                                         # hops") -- this is now a much
+                                         # thinner exercise than the old
+                                         # Postgres recursive CTE, which
+                                         # is itself worth noticing: this
+                                         # is the query the graph pivot
+                                         # was made for.
+
+POST         /links                     # create a link between any two
+                                         # entities (fromType/fromId,
+                                         # toType/toId, type) -- there's
+                                         # no natural "owning side"
+                                         # anymore now that either end
+                                         # can be Source, Note, or
+                                         # Concept, so this isn't nested
+                                         # under one entity's routes.
+GET          /links/{id}
+GET          /sources/{id}/links        # all links touching this source
+GET          /notes/{id}/links          # all links touching this note
+GET          /concepts/{id}/links       # all links touching this concept
 
 GET          /search?q=...              # full-text search across
-                                         # notes + sources. Use real
-                                         # Postgres full-text search
-                                         # (tsvector + GIN index +
-                                         # ts_rank), not LIKE/ILIKE --
-                                         # worth learning properly, and
-                                         # FTS isn't much more work.
+                                         # notes + sources. Use Neo4j's
+                                         # native full-text schema index
+                                         # (`CREATE FULLTEXT INDEX ...`,
+                                         # queried via
+                                         # `db.index.fulltext.queryNodes`)
+                                         # -- the direct equivalent of
+                                         # the Postgres tsvector/GIN/
+                                         # ts_rank approach, worth
+                                         # learning properly rather than
+                                         # a plain `CONTAINS` scan.
 ```
 
 Use proper HTTP status codes, pagination on all list endpoints (Spring
@@ -195,32 +222,32 @@ still be logged server-side — never swallow it silently.
 
 ## Non-functional requirements
 
-- Integration tests (Testcontainers + Postgres) for at least the
-  Source and Note controllers — don't just unit test with mocks
-  everywhere, prove the real DB interactions work
-- Flyway migrations checked into `src/main/resources/db/migration`,
-  versioned properly (V1__init.sql, etc.)
+- Integration tests (Testcontainers + Neo4j) for at least the Source
+  and Note controllers — don't just unit test with mocks everywhere,
+  prove the real DB interactions work
+- neo4j-migrations checked into `src/main/resources/neo4j/migrations`,
+  versioned properly
 - application.yml with separate `dev` and `test` profiles
 - Basic input validation (e.g. title required, rating 1-5 if present)
 - README in the repo explaining: what this is, how to run it locally
-  (docker-compose for Postgres would be nice), and the API shape
+  (docker-compose for Neo4j would be nice), and the API shape
 
 ## What I care about
 
 Code quality over feature breadth. I'd rather have Source + Note fully
 correct, tested, and cleanly structured than all four entities half-done.
-Build incrementally: get Source + Note working end-to-end first (entity,
+Build incrementally: get Source + Note working end-to-end first (node,
 migration, repository, service, controller, tests), then move to Concept
 and Link once that's solid.
 
 Sequencing risk worth naming: Source + Note is the least novel part of
 this project -- a plain one-to-many, the kind of thing every Spring
-tutorial builds. Concept and Link are where the real learning value is
--- proper relationship modeling, polymorphic associations, graph
-traversal. Getting Source/Note fully right first is still correct
-(don't skip it), but don't let the same slow, fully-tested pace applied
-to the simpler entities eat all the time before reaching the parts
-that are actually worth learning from.
+tutorial builds, graph or relational. Concept and Link are where the
+real learning value is -- native graph relationship modeling, Cypher
+variable-length traversal, full-text search. Getting Source/Note fully
+right first is still correct (don't skip it), but don't let the same
+slow, fully-tested pace applied to the simpler entities eat all the time
+before reaching the parts that are actually worth learning from.
 
 ## Out of scope for now (but decided, not just deferred)
 
@@ -238,3 +265,11 @@ that are actually worth learning from.
   blocked by anything else here.
 - Frontend (this is backend-only; may pair with the existing Docusaurus
   site later)
+- **Person** as a fourth linkable entity (e.g. linking a Source or Note
+  to its author, or to a philosopher discussed in it, as a first-class
+  record rather than a free-text `author` field): confirmed as a real
+  future direction, not built now. Adding it later should just mean a
+  new `:Person` node label plus letting the existing relationship types
+  point at it -- no schema redesign required, which is a real advantage
+  of the graph model over the old polymorphic-table plan for this exact
+  kind of future extension.

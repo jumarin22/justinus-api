@@ -1,95 +1,122 @@
 # Build Plan
 
-Companion to `SPEC.md` — the step-by-step sequence for building the
-Source + Note slice, one step at a time, with decisions/questions
-discussed at each step rather than all at once. Concept, Link, and
-search are a separate round after this slice is solid.
+Companion to `SPEC.md` — the step-by-step sequence for rebuilding this
+project on Neo4j/Spring Data Neo4j, one step at a time, with
+decisions/questions discussed at each step rather than all at once.
+
+**This supersedes the original Postgres/JPA build plan.** Source + Note
+were previously built and fully tested against Postgres (see git
+history, commit `67168c1` and earlier) — that work is being redone
+here, not extended, per the stack pivot documented in `SPEC.md`. Concept
+and Link were never started under the old plan, so nothing there is
+lost, only redirected.
 
 ## Foundation
 
-1. **Project skeleton** — `pom.xml`, directory layout, a bare
-   `@SpringBootApplication` that boots with zero endpoints. Confirms
-   Java 25 + Spring Boot 4.1 actually work together on this machine
-   before building anything on top.
-2. **Local Postgres** — `docker-compose.yml`, confirm we can connect to
-   it (no app code yet, just proving the DB is reachable).
-3. **First migration** — Flyway, `V1__init.sql` for just the `sources`
-   table. Establishes the migration pattern before any Java touches it.
+1. **Project skeleton** — swap `pom.xml`: remove
+   `spring-boot-starter-data-jpa`, the Flyway artifacts, and
+   `testcontainers-postgresql`; add `spring-boot-starter-data-neo4j`,
+   `neo4j-migrations-spring-boot-starter`, and `testcontainers-neo4j`.
+   Swap `docker-compose.yml` from Postgres to Neo4j 5.x Community.
+   Confirm the app boots with zero endpoints and SDN can open a
+   connection -- this is where any Spring Boot 4.1 + SDN version gotcha
+   (the kind this project has hit before with Flyway and Testcontainers)
+   would first surface, so don't skip actually running it.
+2. **Local Neo4j** — confirm the app can reach it (Neo4j Browser or
+   `cypher-shell`, no app code yet), the same "prove the DB is
+   reachable before building on it" step the Postgres plan used.
+3. **First migration** — get `neo4j-migrations` actually running end to
+   end with a minimal Cypher script, verified by checking the
+   migrations history subgraph it maintains, not just "it compiled."
+   This is the step flagged in `SPEC.md` as **not yet verified working**
+   -- treat it with the same suspicion the Flyway autoconfiguration
+   gotcha earned the first time around.
 
 ## Source, end to end
 
-4. **Source entity + repository** — JPA entity, `SourceRepository`.
-   Verify it actually reads/writes against the real Postgres (a quick
-   throwaway check, not full tests yet).
+4. **Source node + repository** — `@Node` entity, SDN repository.
+   Verify it actually reads/writes against the real Neo4j instance (a
+   quick throwaway check, not full tests yet). `rating` goes back to a
+   plain `Integer` here (see `SPEC.md` -- the `Short` requirement was
+   Postgres-specific and doesn't apply anymore).
 5. **Source DTOs + service** — request/response records, business logic
-   (create, get, list), separate from the entity.
+   (create, get, list), separate from the node entity.
 6. **Source controller** — wire up `GET/POST /sources`,
    `GET/PATCH /sources/{id}`. Verify manually with curl.
 7. **Validation + error handling** — Bean Validation on the request DTO,
-   `GlobalExceptionHandler` + `ErrorResponse`, decide the PATCH semantics
+   `GlobalExceptionHandler` + `ErrorResponse` (both fully reusable from
+   the old build, unaffected by the pivot), decide PATCH semantics
    (partial update) together.
-8. **First integration test** — Testcontainers base class, one real test
-   against Source (now fully done: create/get/list/patch, validation,
-   error handling all verified manually via curl in step 7 -- this is
-   about locking that behavior in with an automated test, not verifying
-   it for the first time). This is where the whole stack (Flyway + JPA +
-   Postgres + Testcontainers) gets proven together, deliberately done
-   now, before Note adds more surface area to test.
+8. **First integration test** — Testcontainers Neo4j base class, one
+   real test against Source (create/get/list/patch, validation, error
+   handling all verified manually via curl in step 7 -- this locks that
+   behavior in with an automated test). This is where the whole new
+   stack (neo4j-migrations + SDN + Neo4j + Testcontainers) gets proven
+   together, deliberately done now, before Note adds more surface area
+   to test -- same reasoning the original plan used for Postgres.
 
 ## Note, end to end
 
-(repeats the same shape as Source, faster since the pattern's established
--- except Note also brings in Tag, which Source didn't need)
+(repeats the same shape as Source, faster since the pattern's
+established -- except Note also brings in Tag, which Source didn't need)
 
-9. **Note + Tag migration, entities, repositories** — `notes` table,
-   `tags` table, and a `note_tags` join table for the many-to-many
-   (per the spec reframe: a real Tag entity, not a string array). Three
-   entities/repos total: `Note`, `Tag`, plus the join is handled by the
-   `@ManyToMany` mapping itself.
+9. **Note + Tag nodes, relationships** — `Note` and `Tag` as `@Node`
+   entities; `(Note)-[:FROM_SOURCE]->(Source)` and
+   `(Note)-[:TAGGED]->(Tag)` as real graph relationships, no join
+   tables. Tag's `nameLower` property + `IS UNIQUE` constraint (decided
+   in `SPEC.md`) gets written here, before Note's migration touches
+   Tag at all -- same sequencing discipline the original plan used.
 10. **Note DTOs + service** — including the
-    sourceId-required-on-top-level-create decision, and how tags get
-    attached when creating a Note (find-existing-or-create-new Tag by
-    name, not requiring the caller to already know tag ids)
-11. **Note controller** — both `/notes` and `/sources/{id}/notes` routes
+    sourceId-required-on-top-level-create decision (still applies,
+    pivot-independent), and how tags get attached when creating a Note
+    (find-existing-or-create-new Tag by `nameLower`, not requiring the
+    caller to already know a tag's id).
+11. **Note controller** — both `/notes` and `/sources/{id}/notes` routes.
 12. **Note integration tests** — including at least one test that
-    exercises tags (reusing an existing tag, not just creating notes
-    with no tags)
+    exercises tags (reusing an existing tag via its `nameLower` lookup,
+    not just creating notes with no tags).
 
 ## Wrap-up for this slice
 
-13. **README** — what it is, how to run it, API shape.
+13. **README** — rewritten for the new stack: what it is, how to run it
+    (docker-compose for Neo4j, not Postgres), the API shape (unchanged
+    at the HTTP level despite the storage swap).
 
-**Source + Note slice: complete.** All 13 steps done, everything
-verified for real (curl/psql/Testcontainers, not assumed), every
-gotcha hit along the way documented in `SPEC.md` rather than left to
-be rediscovered.
+**Source + Note slice: complete once all 13 steps are done and verified
+for real** (cypher-shell/curl/Testcontainers, not assumed) -- same bar
+the original Postgres build held itself to.
 
 ## Next round: Concept + Link (not started)
 
-Don't just continue this list at step 14 -- start with a fresh
-planning pass, the same way this file did for Source + Note. A few
-things already decided in `SPEC.md` that the next planning pass should
-build from rather than re-litigate:
+Start with a fresh planning pass again once Source + Note is solid on
+the new stack, the same way this file did. What's already decided in
+`SPEC.md` for this round, so the planning pass builds from it rather
+than re-litigating:
 
-- **Link is the entity worth the most design attention**, not
-  "whichever's simplest to implement." The open question is still
-  unresolved: is it a single polymorphic table (`targetType` +
-  `fromId`/`toId` as plain bigints, no DB-level FK integrity possible
-  across two target tables) or separate `NoteLink`/`ConceptLink`
-  tables (real FKs, more tables)? This needs an actual decision before
-  the migration gets written, the way Tag's case-insensitive
-  uniqueness got decided before Note's migration did.
-- **Concept** is more straightforward -- a plain many-to-many with
-  Note, no polymorphism. See `SPEC.md`'s Core entities section for the
-  exact field list.
-- **`GET /concepts/{id}/graph`** should be a real depth-limited
-  traversal (Postgres `WITH RECURSIVE`), not a single-level join --
-  already specified in `SPEC.md`'s Endpoints section, not yet designed
-  in any detail.
-- **`GET /search`** should use real Postgres full-text search
-  (`tsvector` + GIN index + `ts_rank`), not `LIKE`/`ILIKE` -- same
-  status, specified but not designed.
-- Given the sequencing-risk note in `SPEC.md`: this is where the real
-  learning value in the project lives. Worth giving it the same
-  unhurried, fully-verified pace as Source + Note got, not a rushed
-  afterthought.
+- **Concept** is a plain `@Node` (id, name, description) with **no
+  separate many-to-many relationship to Note** -- that was collapsed
+  into Link for simplicity (see `SPEC.md`).
+- **Link is a single generic `LINKS_TO` relationship type** with a
+  `type` property (SUPPORTS/CONTRADICTS/EXTENDS/RELATES_TO), connecting
+  any two Source/Note/Concept nodes, each with its own `id` and
+  `createdAt` properties. One service method creates/queries links
+  regardless of the two endpoint types or the link's semantic type --
+  but the service still has to look up each endpoint by its stated type
+  before creating the relationship (Cypher needs a label to `MATCH`
+  against), so there's real logic here even though there's no
+  polymorphic-table workaround needed anymore.
+- **`GET /concepts/{id}/graph`** should be a native Cypher
+  variable-length path query (`(c)-[*1..2]-(n)`), depth-limited --
+  already specified in `SPEC.md`, and genuinely simpler now than the
+  Postgres recursive-CTE version would have been. Worth noticing that
+  simplification rather than over-building it out of habit.
+- **`GET /search`** should use a Neo4j full-text schema index
+  (`CREATE FULLTEXT INDEX ...`, queried via
+  `db.index.fulltext.queryNodes`) across Note and Source content --
+  same role Postgres's `tsvector`/GIN/`ts_rank` would have played,
+  specified but not yet designed in detail.
+- Same sequencing-risk note as before: this is where the real learning
+  value in the project lives (native graph relationship modeling,
+  Cypher traversal, full-text search). Give it the same unhurried,
+  fully-verified pace Source + Note gets, not a rushed afterthought
+  once the "foundational" part feels done.

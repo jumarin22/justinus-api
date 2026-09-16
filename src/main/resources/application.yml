@@ -1,13 +1,8 @@
 spring:
   application:
     name: justinus-api
-  datasource:
-    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:justinus}
-    username: ${POSTGRES_USER:justinus}
-    password: ${POSTGRES_PASSWORD:justinus}
-  flyway:
-    locations: classpath:db/migration
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD:justinus}

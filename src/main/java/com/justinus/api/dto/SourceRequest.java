@@ -16,7 +16,7 @@ public record SourceRequest(
         @NotNull LocalDate dateStarted,
         LocalDate dateFinished,
         @NotNull SourceStatus status,
-        @Min(1) @Max(5) Short rating,
+        @Min(1) @Max(5) Integer rating,
         String generalNotes
 ) {
 }
