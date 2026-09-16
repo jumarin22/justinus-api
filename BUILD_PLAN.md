@@ -76,13 +76,21 @@ lost, only redirected.
    `GET` on a nonexistent id returned `404`. PATCH semantics (partial
    update, no way to explicitly null a field) already decided and
    carried over unchanged from the original build.
-8. **First integration test** — Testcontainers Neo4j base class, one
-   real test against Source (create/get/list/patch, validation, error
-   handling all verified manually via curl in step 7 -- this locks that
-   behavior in with an automated test). This is where the whole new
-   stack (neo4j-migrations + SDN + Neo4j + Testcontainers) gets proven
-   together, deliberately done now, before Note adds more surface area
-   to test -- same reasoning the original plan used for Postgres.
+8. **First integration test** -- **done, verified.**
+   `AbstractIntegrationTest` (singleton `Neo4jContainer`, same
+   not-`@Testcontainers`/`@Container` pattern as the old Postgres base
+   class) + `SourceControllerIT` covering everything verified manually
+   via curl in steps 6-7: create/get, validation (400), date-order
+   validation, 404, patch (re-fetched on a separate request to prove
+   persistence, not just trust the PATCH response), out-of-range PATCH
+   rejection, and paginated list. All 7 tests pass on `mvn verify`.
+   This is where the whole new stack (neo4j-migrations + SDN + Neo4j +
+   Testcontainers) got proven together for real, before Note adds more
+   surface area -- same reasoning the original plan used for Postgres.
+   One cosmetic gotcha surfaced and documented in `SPEC.md`: Neo4j
+   logs a harmless `WARN ... property key does not exist` when
+   querying a property that's absent on a node (nulls aren't stored as
+   properties at all) -- looks alarming, isn't a real problem.
 
 ## Note, end to end
 

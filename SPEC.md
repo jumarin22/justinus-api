@@ -108,6 +108,16 @@ throwaway experiment: patched a `Source`'s title without calling
 `save()` explicitly, reloaded again, confirmed it did. This directly
 affects any PATCH-style partial update -- see `SourceService.patch()`.
 
+Known gotcha, cosmetic but worth recognizing: Neo4j is genuinely
+schema-optional at the property level, not just the node-label level --
+a node created with a `null` field (e.g. a `Source` with no `rating`
+yet) simply **omits that property from the node entirely**, it doesn't
+store a null. Querying for that property on a node where it's absent
+prints a real but harmless `WARN ... property key does not exist`
+during tests -- this showed up the first time `SourceControllerIT` ran
+and looks alarming, but the query still correctly returns `null` for
+that field and every test passes. Don't mistake it for a real error.
+
 ## Core entities
 
 Everything below is a graph node (`@Node`) connected by typed
