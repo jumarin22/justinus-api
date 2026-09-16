@@ -81,7 +81,7 @@ public class SourceService {
         return SourceResponse.from(source);
     }
 
-    private Source findOrThrow(Long id) {
+    Source findOrThrow(Long id) {
         return sourceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Source not found: " + id));
     }
