@@ -37,12 +37,46 @@ practices for real, not performing them for an audience.
   for show — genuinely useful for manually poking at your own API as it
   grows, on top of the Bruno collection. The sibling `springer` project
   already does this.
-- Testcontainers (2.x BOM) for integration tests against real Postgres —
-  **expected to work, not yet verified** against Spring Boot 4.1.x. Both
-  Flyway and Actuator had their own Spring Boot 4-specific surprises
-  (one broke silently, one didn't); don't assume Testcontainers
-  integration will be friction-free just because a compatible version
-  exists on Maven Central.
+- Testcontainers (2.x, BOM-managed by Spring Boot 4.1.1's parent POM,
+  no manual import needed) for integration tests against real Postgres.
+  **Verified working**, but it took four real fixes to get there:
+  - Testcontainers 2.x renamed every module artifact with a
+    `testcontainers-` prefix: `org.testcontainers:junit-jupiter` is now
+    `org.testcontainers:testcontainers-junit-jupiter`,
+    `org.testcontainers:postgresql` is now
+    `org.testcontainers:testcontainers-postgresql`. The old coordinates
+    just fail dependency resolution with a missing-version error.
+  - `PostgreSQLContainer` is no longer generic in 2.x (dropped the
+    self-referential type parameter) -- `new PostgreSQLContainer<>(...)`
+    doesn't compile anymore, it's just `new PostgreSQLContainer(...)`.
+  - `@AutoConfigureMockMvc` moved out of `spring-boot-test-autoconfigure`
+    into its own module, `spring-boot-webmvc-test`
+    (`org.springframework.boot.webmvc.test.autoconfigure` package) --
+    same per-feature module split pattern as Flyway, just hitting a
+    different corner of the stack.
+  - Jackson 3 (see the gotcha below) means test code needs
+    `tools.jackson.databind.ObjectMapper`, not
+    `com.fasterxml.jackson.databind.ObjectMapper`, if it autowires one.
+  - Use Spring Boot's own `spring-boot-testcontainers` module and
+    `@ServiceConnection` on the container field instead of manual
+    `@DynamicPropertySource` -- less boilerplate, and it's the
+    currently-recommended pattern.
+  - **Machine-specific, not project-specific:** if the local Docker
+    runtime is Colima (or another lightweight/VM-based runtime, common
+    in CI too) rather than Docker Desktop, two more things are needed:
+    `docker.host=unix:///path/to/colima/docker.sock` in
+    `~/.testcontainers.properties` (machine-level, not checked in --
+    Colima's socket path isn't portable across machines), and
+    `TESTCONTAINERS_RYUK_DISABLED=true` as an environment variable
+    (env-var-only, no properties-file equivalent) because Ryuk's
+    cleanup container tries to bind-mount the Docker socket path in a
+    way that doesn't translate into Colima's Linux VM. This one *is*
+    checked in, via the `maven-failsafe-plugin` config in `pom.xml`,
+    since it's a runtime-class problem, not a personal-machine one.
+  - `*IT.java` classes need `mvn verify` (Failsafe), not `mvn test`
+    (Surefire) -- that's a real Maven naming convention, not a Spring
+    Boot 4 quirk, but worth stating since nothing else in this project
+    needed the distinction before now.
 - Maven
 - Bean Validation (Jakarta Validation 3.1) for request validation
 - Clean layered architecture: controller -> service -> repository, with
