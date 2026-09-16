@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: justinus-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/justinus
+    username: justinus
+    password: justinus
+  flyway:
+    locations: classpath:db/migration

@@ -9,10 +9,19 @@ between them. Think lightweight Zettelkasten/PKM engine, not a toy CRUD app.
 - Java 25 (LTS)
 - Spring Boot 4.1.x, Spring Framework 7.x
 - Spring Data JPA + PostgreSQL 18
-- Flyway for migrations (no auto-DDL in prod profile) — Flyway 10+ needs the
-  Postgres dialect as its own artifact (`flyway-database-postgresql`)
-  alongside `flyway-core`; don't drop it and wonder why migrations fail
-  against Postgres with an "unsupported database" error
+- Flyway for migrations (no auto-DDL in prod profile). Two gotchas that
+  cost real debugging time on Spring Boot 4.x:
+  - Spring Boot 4's autoconfiguration got split per-feature into separate
+    artifacts. `spring-boot-starter-jdbc` alone does NOT pull in Flyway
+    autoconfiguration anymore — you need `org.springframework.boot:
+    spring-boot-flyway` explicitly, or Flyway silently never runs (no
+    error, no log line, migrations just don't happen).
+  - Flyway 10+ also needs the Postgres dialect as its own artifact
+    (`flyway-database-postgresql`) alongside `flyway-core`, or migrations
+    fail against Postgres with an "unsupported database" error.
+  - Postgres 18's Docker image also changed its volume convention: mount
+    at `/var/lib/postgresql`, not `.../data`, or the container
+    crash-loops on startup.
 - Testcontainers (2.x BOM) for integration tests against real Postgres
 - Maven (or Gradle — your call, pick one and be consistent)
 - Bean Validation (Jakarta Validation 3.1) for request validation
