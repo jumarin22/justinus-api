@@ -1,6 +1,8 @@
 package com.justinus.api.repository;
 
 import com.justinus.api.domain.LinkableType;
+import com.justinus.api.dto.GraphNode;
+import com.justinus.api.dto.GraphResponse;
 import com.justinus.api.dto.LinkResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -89,6 +91,57 @@ public class LinkRepository {
                 .mappedBy((ts, r) -> map(r))
                 .all().stream().toList();
         return new PageImpl<>(content, pageable, total);
+    }
+
+    /**
+     * Everything reachable from a concept within {@code depth} LINKS_TO hops,
+     * in either direction. Cypher can't parameterize a path-length bound, so
+     * depth is spliced in as an int -- the caller has already range-checked it.
+     */
+    public GraphResponse graph(String conceptId, int depth) {
+        List<GraphNode> nodes = client.query(
+                        "MATCH (c:Concept {id: $id})-[:LINKS_TO*0.." + depth + "]-(n) "
+                                + "WITH DISTINCT n "
+                                + "RETURN n.id AS id, labels(n) AS labels, "
+                                + "coalesce(n.title, n.name, left(n.content, 80)) AS label")
+                .bind(conceptId).to("id")
+                .fetchAs(GraphNode.class)
+                .mappedBy((ts, r) -> new GraphNode(
+                        r.get("id").asString(),
+                        LinkableType.fromLabels(r.get("labels").asList(org.neo4j.driver.Value::asString)),
+                        r.get("label").asString(null)))
+                .all().stream().toList();
+
+        // relationships(p) yields each hop; DISTINCT collapses relationships
+        // shared by several paths into one edge.
+        List<LinkResponse> edges = client.query(
+                        "MATCH p = (:Concept {id: $id})-[:LINKS_TO*1.." + depth + "]-() "
+                                + "UNWIND relationships(p) AS l "
+                                + "WITH DISTINCT l, startNode(l) AS a, endNode(l) AS b "
+                                + RETURN_LINK
+                                + "ORDER BY l.createdAt, l.id")
+                .bind(conceptId).to("id")
+                .fetchAs(LinkResponse.class)
+                .mappedBy((ts, r) -> map(r))
+                .all().stream().toList();
+        return new GraphResponse(nodes, edges);
+    }
+
+    /** Ids of Notes with a LINKS_TO relationship (either direction) to the concept. */
+    public Page<String> findNoteIdsLinkedToConcept(String conceptId, Pageable pageable) {
+        String match = "MATCH (n:Note)-[:LINKS_TO]-(:Concept {id: $id}) ";
+        long total = client.query(match + "RETURN count(DISTINCT n) AS c")
+                .bind(conceptId).to("id")
+                .fetchAs(Long.class)
+                .mappedBy((ts, r) -> r.get("c").asLong())
+                .one().orElse(0L);
+        List<String> ids = client.query(match
+                        + "WITH DISTINCT n RETURN n.id AS id ORDER BY n.createdAt DESC, n.id SKIP $skip LIMIT $limit")
+                .bindAll(Map.of("id", conceptId, "skip", pageable.getOffset(), "limit", pageable.getPageSize()))
+                .fetchAs(String.class)
+                .mappedBy((ts, r) -> r.get("id").asString())
+                .all().stream().toList();
+        return new PageImpl<>(ids, pageable, total);
     }
 
     private static LinkResponse map(org.neo4j.driver.Record r) {

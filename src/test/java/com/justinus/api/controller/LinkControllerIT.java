@@ -152,4 +152,72 @@ class LinkControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(get("/links/{id}", "nope")).andExpect(status().isNotFound());
         mockMvc.perform(get("/concepts/{id}/links", "nope")).andExpect(status().isNotFound());
     }
+
+    @Test
+    void graphReturnsNodesAndEdgesWithinDepth() throws Exception {
+        String sourceId = source();
+        String noteId = note(sourceId);
+        String root = concept("Root");
+        String near = concept("Near");
+        String far = concept("Far");
+        String beyond = concept("Beyond");
+
+        create("/links", linkBody("NOTE", noteId, "CONCEPT", root, "SUPPORTS"));
+        create("/links", linkBody("CONCEPT", root, "CONCEPT", near, "EXTENDS"));
+        create("/links", linkBody("CONCEPT", far, "CONCEPT", near, "RELATES_TO"));
+        create("/links", linkBody("CONCEPT", far, "CONCEPT", beyond, "RELATES_TO"));
+
+        // Depth 2 from root: note, near (1 hop); far (2 hops). Not beyond (3).
+        mockMvc.perform(get("/concepts/{id}/graph", root))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(4))
+                .andExpect(jsonPath("$.edges.length()").value(3))
+                .andExpect(jsonPath("$.nodes[?(@.id=='" + beyond + "')]").isEmpty())
+                .andExpect(jsonPath("$.nodes[?(@.id=='" + root + "')].label").value("Root"))
+                .andExpect(jsonPath("$.nodes[?(@.id=='" + noteId + "')].type").value("NOTE"));
+
+        mockMvc.perform(get("/concepts/{id}/graph", root).param("depth", "1"))
+                .andExpect(jsonPath("$.nodes.length()").value(3))
+                .andExpect(jsonPath("$.edges.length()").value(2));
+
+        mockMvc.perform(get("/concepts/{id}/graph", root).param("depth", "3"))
+                .andExpect(jsonPath("$.nodes.length()").value(5));
+    }
+
+    @Test
+    void graphOfAnIsolatedConceptIsJustItself() throws Exception {
+        String root = concept("Lonely");
+        mockMvc.perform(get("/concepts/{id}/graph", root))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(1))
+                .andExpect(jsonPath("$.edges.length()").value(0));
+    }
+
+    @Test
+    void graphRejectsBadDepthAndUnknownConcept() throws Exception {
+        String root = concept("Depthy");
+        mockMvc.perform(get("/concepts/{id}/graph", root).param("depth", "0")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/concepts/{id}/graph", root).param("depth", "6")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/concepts/{id}/graph", "nope")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listsNotesLinkedToAConcept() throws Exception {
+        String sourceId = source();
+        String linked = note(sourceId);
+        String alsoLinked = note(sourceId);
+        note(sourceId); // unlinked
+        String conceptId = concept("Stoic notes");
+
+        create("/links", linkBody("NOTE", linked, "CONCEPT", conceptId, "RELATES_TO"));
+        create("/links", linkBody("CONCEPT", conceptId, "NOTE", alsoLinked, "RELATES_TO"));
+
+        mockMvc.perform(get("/concepts/{id}/notes", conceptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].sourceId").value(sourceId));
+
+        mockMvc.perform(get("/concepts/{id}/notes", "nope")).andExpect(status().isNotFound());
+    }
 }

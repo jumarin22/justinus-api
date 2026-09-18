@@ -16,7 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -25,8 +28,11 @@ public class NoteService {
     private final NoteRepository noteRepository;
     private final TagRepository tagRepository;
     private final SourceService sourceService;
+    private final LinkService linkService;
 
-    public NoteService(NoteRepository noteRepository, TagRepository tagRepository, SourceService sourceService) {
+    public NoteService(NoteRepository noteRepository, TagRepository tagRepository, SourceService sourceService,
+                       LinkService linkService) {
+        this.linkService = linkService;
         this.noteRepository = noteRepository;
         this.tagRepository = tagRepository;
         this.sourceService = sourceService;
@@ -59,6 +65,15 @@ public class NoteService {
     public Page<NoteResponse> listBySource(String sourceId, Pageable pageable) {
         sourceService.findOrThrow(sourceId);
         return noteRepository.findBySourceId(sourceId, pageable).map(NoteResponse::from);
+    }
+
+    /** Notes linked (in either direction) to a concept, via LINKS_TO. */
+    public Page<NoteResponse> listByConcept(String conceptId, Pageable pageable) {
+        Page<String> ids = linkService.listNoteIdsLinkedToConcept(conceptId, pageable);
+        // findAllById doesn't preserve order; restore the page's ordering.
+        Map<String, Note> byId = noteRepository.findAllById(ids.getContent()).stream()
+                .collect(Collectors.toMap(Note::getId, Function.identity()));
+        return ids.map(id -> NoteResponse.from(byId.get(id)));
     }
 
     private Note findOrThrow(String id) {

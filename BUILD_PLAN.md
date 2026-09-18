@@ -181,8 +181,19 @@ in `SPEC.md` rather than left to be rediscovered.
     JSON returned 500 -- `GlobalExceptionHandler` now maps
     `HttpMessageNotReadableException` to 400. `mvn verify`: 31 tests
     passing.
-    **Next: `/concepts/{id}/graph` (variable-length Cypher path), then
-    `/concepts/{id}/notes`, then full-text `/search`.**
+16. **Concept graph + notes** -- **done, verified.**
+    `GET /concepts/{id}/graph?depth=N` (default 2, 1..5 else 400)
+    returns `{nodes, edges}` from two native variable-length Cypher
+    queries (`(c)-[:LINKS_TO*0..N]-(n)` for nodes, `*1..N` +
+    `UNWIND relationships(p)` + `DISTINCT` for edges). Cypher can't
+    parameterize a path-length bound, so the range-checked int is
+    spliced in. Node `label` is `coalesce(title, name, left(content,80))`.
+    `GET /concepts/{id}/notes` returns notes linked to a concept in
+    either direction: ids come from Cypher (paginated, distinct), then
+    `findAllById` hydrates them and the page order is restored, since
+    `findAllById` doesn't preserve order. `mvn verify`: 35 tests passing.
+    **Next: full-text `/search` (Neo4j fulltext index across Note and
+    Source).**
 
 
 Start with a fresh planning pass again once Source + Note is solid on
