@@ -16,8 +16,12 @@ headers {
 
 body:json {
   {
-    "sourceId": {{sourceId}},
+    "sourceId": "{{sourceId}}",
     "content": "Top-level create.",
     "tags": ["ethics"]
   }
+}
+
+vars:post-response {
+  noteId: res.body.id
 }

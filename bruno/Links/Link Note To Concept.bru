@@ -1,0 +1,29 @@
+meta {
+  name: Link Note To Concept
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/links
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "fromType": "NOTE",
+    "fromId": "{{noteId}}",
+    "toType": "CONCEPT",
+    "toId": "{{conceptId}}",
+    "type": "SUPPORTS"
+  }
+}
+
+vars:post-response {
+  linkId: res.body.id
+}

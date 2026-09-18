@@ -1,0 +1,15 @@
+meta {
+  name: Concept Graph
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/concepts/{{conceptId}}/graph?depth=2
+  body: none
+  auth: none
+}
+
+params:query {
+  depth: 2
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Link Source To Concept
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/links
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "fromType": "SOURCE",
+    "fromId": "{{sourceId}}",
+    "toType": "CONCEPT",
+    "toId": "{{conceptId}}",
+    "type": "RELATES_TO"
+  }
+}
+
+vars:post-response {
+  linkId: res.body.id
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Patch Concept
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/concepts/{{conceptId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "description": "Updated description."
+  }
+}
