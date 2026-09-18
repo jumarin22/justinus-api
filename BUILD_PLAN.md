@@ -203,6 +203,22 @@ in `SPEC.md` rather than left to be rediscovered.
     -- `MissingServletRequestParameterException` now maps to 400.
     `mvn verify`: 40 tests passing.
 
+18. **Unique Concept names** -- **done, verified.** Found by looking
+    at real data: repeated Bruno "Create Concept" clicks had produced 4
+    identical concepts. Mirrors Tag: maintained `nameLower` (name is
+    stripped), unique constraint, 409 via a new `ConflictException`.
+    The service pre-checks for a friendly message; the constraint is the
+    real guard against races, with `DataIntegrityViolationException`
+    mapped to 409 (a test saves through the repository to prove the
+    constraint fires and translates). Two migrations, not one: V4
+    backfills `nameLower` on existing nodes, V5 adds the constraint --
+    Neo4j rejects a data write and a schema change in one transaction
+    ("Tried to execute Schema modification after executing Write
+    query"). Verified against the real dev database, not just tests:
+    backfill ran, constraint exists, duplicate returns 409. Cross-class
+    test collision ("Amor fati" in two ITs sharing one container) was
+    the constraint doing its job; renamed one. 44 tests passing.
+
 **Concept + Link round: complete.** `/search` operators/phrases are a
 deliberate non-feature (input is escaped to plain words); revisit if
 phrase search matters.

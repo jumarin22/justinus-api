@@ -4,8 +4,10 @@ import com.justinus.api.domain.Concept;
 import com.justinus.api.dto.ConceptPatchRequest;
 import com.justinus.api.dto.ConceptRequest;
 import com.justinus.api.dto.ConceptResponse;
+import com.justinus.api.exception.ConflictException;
 import com.justinus.api.exception.ResourceNotFoundException;
 import com.justinus.api.repository.ConceptRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,7 +26,8 @@ public class ConceptService {
     @Transactional
     public ConceptResponse create(ConceptRequest request) {
         Concept concept = new Concept(request.name(), request.description());
-        return ConceptResponse.from(conceptRepository.save(concept));
+        requireNameFree(concept.getNameLower(), null);
+        return ConceptResponse.from(save(concept));
     }
 
     public ConceptResponse getById(String id) {
@@ -40,15 +43,34 @@ public class ConceptService {
         Concept concept = findOrThrow(id);
         if (request.name() != null) {
             concept.setName(request.name());
+            requireNameFree(concept.getNameLower(), concept.getId());
         }
         if (request.description() != null) {
             concept.setDescription(request.description());
         }
-        return ConceptResponse.from(conceptRepository.save(concept));
+        return ConceptResponse.from(save(concept));
     }
 
     Concept findOrThrow(String id) {
         return conceptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Concept not found: " + id));
+    }
+
+    private void requireNameFree(String nameLower, String selfId) {
+        conceptRepository.findByNameLower(nameLower)
+                .filter(existing -> !existing.getId().equals(selfId))
+                .ifPresent(existing -> {
+                    throw new ConflictException("A concept named \"" + existing.getName() + "\" already exists");
+                });
+    }
+
+    // The pre-check above gives a friendly message, but two concurrent
+    // requests can both pass it; the unique constraint is the real guard.
+    private Concept save(Concept concept) {
+        try {
+            return conceptRepository.save(concept);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("A concept with that name already exists");
+        }
     }
 }

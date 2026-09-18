@@ -155,6 +155,10 @@ GET          /search?q=...
   never need to know a tag's id up front.
 - `GET /sources/{id}/notes` (and note creation under a missing source)
   return 404, not an empty list, if the source doesn't exist.
+- Concept names are unique, case-insensitively and ignoring surrounding
+  whitespace ("Free will" and " free WILL" are the same concept): a
+  duplicate create or rename returns 409. Enforced by a real Neo4j
+  constraint on a maintained `nameLower` property, same as Tag.
 - A link is `{fromType, fromId, toType, toId, type}` where the types
   are `SOURCE`/`NOTE`/`CONCEPT` and `type` is `SUPPORTS`/`CONTRADICTS`/
   `EXTENDS`/`RELATES_TO`. A missing endpoint (or an id that doesn't

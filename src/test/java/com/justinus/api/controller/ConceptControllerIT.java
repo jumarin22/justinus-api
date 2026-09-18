@@ -7,6 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.justinus.api.domain.Concept;
+import com.justinus.api.repository.ConceptRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,6 +25,9 @@ class ConceptControllerIT extends AbstractIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ConceptRepository conceptRepository;
 
     private String createConcept(String body) throws Exception {
         String response = mockMvc.perform(post("/concepts")
@@ -99,5 +107,49 @@ class ConceptControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.page.size").value(5));
+    }
+
+    @Test
+    void rejectsDuplicateNamesCaseInsensitively() throws Exception {
+        createConcept("{ \"name\": \"Hedonic treadmill\" }");
+
+        for (String dup : new String[]{"Hedonic treadmill", "hedonic TREADMILL", "  Hedonic treadmill  "}) {
+            mockMvc.perform(post("/concepts")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{ \"name\": \"" + dup + "\" }"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409));
+        }
+    }
+
+    @Test
+    void rejectsRenamingOntoAnExistingName() throws Exception {
+        createConcept("{ \"name\": \"Occupied name\" }");
+        String id = createConcept("{ \"name\": \"Other name\" }");
+
+        mockMvc.perform(patch("/concepts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"name\": \"occupied NAME\" }"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void allowsRenamingToADifferentCaseOfItsOwnName() throws Exception {
+        String id = createConcept("{ \"name\": \"self rename\" }");
+
+        mockMvc.perform(patch("/concepts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"name\": \"Self Rename\" }"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Self Rename"));
+    }
+
+    @Test
+    void databaseConstraintBacksUpTheServiceCheck() {
+        // Bypasses the service's pre-check, standing in for the race where
+        // two concurrent creates both pass it.
+        conceptRepository.save(new Concept("Constraint check", null));
+        assertThrows(DataIntegrityViolationException.class,
+                () -> conceptRepository.save(new Concept("CONSTRAINT CHECK", null)));
     }
 }

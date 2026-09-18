@@ -51,7 +51,7 @@ class LinkControllerIT extends AbstractIntegrationTest {
     @Test
     void linksANoteToAConceptAndFetchesIt() throws Exception {
         String noteId = note(source());
-        String conceptId = concept("Amor fati");
+        String conceptId = concept("Amor fati (link test)");
 
         String linkId = create("/links", linkBody("NOTE", noteId, "CONCEPT", conceptId, "SUPPORTS"));
 
