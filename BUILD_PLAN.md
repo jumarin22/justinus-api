@@ -231,6 +231,15 @@ in `SPEC.md` rather than left to be rediscovered.
     now takes `NoteRepository` directly, since `NoteService` already
     depends on `SourceService`. Bruno requests added. 55 tests passing.
 
+20. **Swagger UI + Concept search** -- **done, verified.** springdoc
+    `3.1.1` (checked against Maven Central metadata rather than a search
+    result: latest release, built on Boot 4.1.0, we're on 4.1.1);
+    Swagger UI and `/v3/api-docs` verified on the real app, all 15
+    paths documented. Search index gains Concept name/description via
+    `V6`: a fulltext index can't be altered in place, so it drops and
+    recreates (repopulates from existing nodes -- verified on the dev
+    database, index ONLINE, existing concept found). 57 tests passing.
+
 **Concept + Link round: complete.** `/search` operators/phrases are a
 deliberate non-feature (input is escaped to plain words); revisit if
 phrase search matters.

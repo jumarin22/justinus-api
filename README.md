@@ -173,8 +173,8 @@ GET          /search?q=...
   `/{kind}/{id}/links` lists links in either direction.
 - `/concepts/{id}/graph` returns `{nodes, edges}` for everything within
   `depth` hops (default 2, max 5) in either direction.
-- `/search` runs a Neo4j full-text index over Note content and Source
-  title/author/notes, ranked by score. Query text is treated as plain
+- `/search` runs a Neo4j full-text index over Note content, Source
+  title/author/notes, and Concept name/description, ranked by score. Query text is treated as plain
   words: Lucene syntax characters and `AND`/`OR`/`NOT` are neutralized,
   so operators and quoted phrases are not supported.
 - Errors return a consistent body: `{ "status": <int>, "message":
@@ -215,6 +215,12 @@ curl -X POST localhost:8080/sources/<id-from-the-response-above>/notes \
       }'
 ```
 
+## API docs (Swagger UI)
+
+With the app running: Swagger UI at http://localhost:8080/swagger-ui.html,
+raw OpenAPI document at `/v3/api-docs`. Generated from the controllers,
+so it can't drift from the code.
+
 ## Health check
 
 Spring Boot Actuator is included; `GET /actuator/health` reports `UP`
@@ -238,9 +244,10 @@ Spring Boot Actuator is included; `GET /actuator/health` reports `UP`
   [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key))
   to fetch CVE data as of v13 -- not wired up here since Trivy already
   covers the same need with zero setup.
-- `neo4j-migrations-spring-boot-starter` is the one dependency in
+- `neo4j-migrations-spring-boot-starter` and
+  `springdoc-openapi-starter-webmvc-ui` are the two dependencies in
   `pom.xml` not managed by Spring Boot's own BOM (pinned manually) --
-  worth an occasional manual re-scan as that one ages on its own
+  worth an occasional manual re-scan as they age on their own
   schedule.
 
 ## Not yet built

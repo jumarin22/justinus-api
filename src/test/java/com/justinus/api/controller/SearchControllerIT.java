@@ -90,4 +90,19 @@ class SearchControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.content.length()").value(2))
                 .andExpect(jsonPath("$.page.totalElements").value(3));
     }
+
+    @Test
+    void findsConceptsByNameAndDescription() throws Exception {
+        String id = create("/concepts",
+                "{ \"name\": \"Quixotic resignation\", \"description\": \"Tilting at unwinnable windmills\" }");
+
+        mockMvc.perform(get("/search").param("q", "quixotic"))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(id))
+                .andExpect(jsonPath("$.content[0].type").value("CONCEPT"))
+                .andExpect(jsonPath("$.content[0].label").value("Quixotic resignation"));
+
+        mockMvc.perform(get("/search").param("q", "windmills"))
+                .andExpect(jsonPath("$.content[0].id").value(id));
+    }
 }

@@ -32,7 +32,7 @@ public class SearchRepository {
         List<SearchResult> content = client.query("CALL db.index.fulltext.queryNodes('search_index', $q) "
                         + "YIELD node, score "
                         + "RETURN node.id AS id, labels(node) AS labels, "
-                        + "coalesce(node.title, left(node.content, 80)) AS label, score "
+                        + "coalesce(node.title, node.name, left(node.content, 80)) AS label, score "
                         + "ORDER BY score DESC, id SKIP $skip LIMIT $limit")
                 .bindAll(Map.of("q", luceneQuery, "skip", pageable.getOffset(), "limit", pageable.getPageSize()))
                 .fetchAs(SearchResult.class)
