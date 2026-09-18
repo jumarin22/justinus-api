@@ -159,7 +159,17 @@ the way (stale migrations-library version, no JPA-style dirty
 checking, Neo4j's schema-optional-per-property warning) is documented
 in `SPEC.md` rather than left to be rediscovered.
 
-## Next round: Concept + Link (not started)
+## Next round: Concept + Link (in progress)
+
+14. **Concept node, repository, DTOs, service, controller, tests** --
+    **done, verified.** `Concept` is a plain `@Node` (UUID string id,
+    name, nullable description), with `/concepts` list/create/get/patch
+    following the Source pattern. `mvn verify` runs 22 tests (7 Source
+    + 8 Note + 7 Concept), all passing. `/concepts/{id}/notes`, `/graph`
+    and `/links` are deferred until Link exists.
+    **Next: Link (`LINKS_TO` relationship with `id`/`createdAt`/`type`),
+    then `/concepts/{id}/graph`, then full-text `/search`.**
+
 
 Start with a fresh planning pass again once Source + Note is solid on
 the new stack, the same way this file did. What's already decided in
