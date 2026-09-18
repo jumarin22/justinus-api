@@ -1,0 +1,22 @@
+meta {
+  name: Patch Note
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/notes/{{noteId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "content": "Corrected content.",
+    "tags": ["control"]
+  }
+}

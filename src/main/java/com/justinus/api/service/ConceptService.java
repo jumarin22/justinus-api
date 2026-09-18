@@ -51,6 +51,13 @@ public class ConceptService {
         return ConceptResponse.from(save(concept));
     }
 
+    /** Removes the concept and, with it, every LINKS_TO relationship touching it. */
+    @Transactional
+    public void delete(String id) {
+        findOrThrow(id);
+        conceptRepository.deleteById(id);
+    }
+
     Concept findOrThrow(String id) {
         return conceptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Concept not found: " + id));

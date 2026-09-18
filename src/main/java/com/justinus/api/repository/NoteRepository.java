@@ -8,4 +8,6 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 public interface NoteRepository extends Neo4jRepository<Note, String> {
 
     Page<Note> findBySourceId(String sourceId, Pageable pageable);
+
+    boolean existsBySourceId(String sourceId);
 }

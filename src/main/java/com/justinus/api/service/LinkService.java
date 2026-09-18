@@ -44,6 +44,13 @@ public class LinkService {
                 .orElseThrow(() -> new ResourceNotFoundException("Link not found: " + id));
     }
 
+    @Transactional
+    public void delete(String id) {
+        if (!linkRepository.deleteById(id)) {
+            throw new ResourceNotFoundException("Link not found: " + id);
+        }
+    }
+
     public Page<LinkResponse> listTouching(LinkableType type, String id, Pageable pageable) {
         requireNode(type, id);
         return linkRepository.findTouching(type, id, pageable);

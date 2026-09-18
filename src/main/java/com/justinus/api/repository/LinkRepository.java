@@ -73,6 +73,14 @@ public class LinkRepository {
                 .one();
     }
 
+    public boolean deleteById(String id) {
+        return client.query("MATCH ()-[l:LINKS_TO {id: $id}]->() DELETE l RETURN count(*) AS c")
+                .bind(id).to("id")
+                .fetchAs(Long.class)
+                .mappedBy((ts, r) -> r.get("c").asLong())
+                .one().orElse(0L) > 0;
+    }
+
     public Page<LinkResponse> findTouching(LinkableType type, String id, Pageable pageable) {
         String match = "MATCH (n:" + type.label() + " {id: $id})-[l:LINKS_TO]-(m) ";
         long total = client.query(match + "RETURN count(l) AS c")

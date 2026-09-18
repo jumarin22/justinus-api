@@ -119,19 +119,19 @@ string ids.
 
 ```
 GET/POST     /sources
-GET/PATCH    /sources/{id}
+GET/PATCH/DELETE  /sources/{id}
 GET/POST     /sources/{id}/notes
 
 GET/POST     /notes
-GET          /notes/{id}
+GET/PATCH/DELETE  /notes/{id}
 
 GET/POST     /concepts
-GET/PATCH    /concepts/{id}
+GET/PATCH/DELETE  /concepts/{id}
 GET          /concepts/{id}/notes
 GET          /concepts/{id}/graph?depth=2
 
 POST         /links
-GET          /links/{id}
+GET/DELETE   /links/{id}
 GET          /{sources,notes,concepts}/{id}/links
 
 GET          /search?q=...
@@ -159,6 +159,13 @@ GET          /search?q=...
   whitespace ("Free will" and " free WILL" are the same concept): a
   duplicate create or rename returns 409. Enforced by a real Neo4j
   constraint on a maintained `nameLower` property, same as Tag.
+- **DELETE** returns 204 (404 if the id doesn't exist). Deleting a
+  Concept or Note also removes every relationship touching it, links
+  included, but never the nodes on the other end. Deleting a Source
+  that still has notes is a 409 -- delete the notes first. Tags are
+  never deleted, even when no note uses them any more. `PATCH
+  /notes/{id}` follows the Source rules; `tags`, if present, replaces
+  the whole set (`[]` clears it).
 - A link is `{fromType, fromId, toType, toId, type}` where the types
   are `SOURCE`/`NOTE`/`CONCEPT` and `type` is `SUPPORTS`/`CONTRADICTS`/
   `EXTENDS`/`RELATES_TO`. A missing endpoint (or an id that doesn't

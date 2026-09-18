@@ -64,4 +64,16 @@ public class Note {
     public Set<Tag> getTags() {
         return tags;
     }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setLocationRef(String locationRef) {
+        this.locationRef = locationRef;
+    }
+
+    public void setTags(Set<Tag> tags) {
+        this.tags = new LinkedHashSet<>(tags);
+    }
 }

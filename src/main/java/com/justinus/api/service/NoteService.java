@@ -3,6 +3,7 @@ package com.justinus.api.service;
 import com.justinus.api.domain.Note;
 import com.justinus.api.domain.Source;
 import com.justinus.api.domain.Tag;
+import com.justinus.api.dto.NotePatchRequest;
 import com.justinus.api.dto.NoteRequest;
 import com.justinus.api.dto.NoteResponse;
 import com.justinus.api.exception.InvalidRequestException;
@@ -74,6 +75,31 @@ public class NoteService {
         Map<String, Note> byId = noteRepository.findAllById(ids.getContent()).stream()
                 .collect(Collectors.toMap(Note::getId, Function.identity()));
         return ids.map(id -> NoteResponse.from(byId.get(id)));
+    }
+
+    @Transactional
+    public NoteResponse patch(String id, NotePatchRequest request) {
+        Note note = findOrThrow(id);
+        if (request.content() != null) {
+            note.setContent(request.content());
+        }
+        if (request.locationRef() != null) {
+            note.setLocationRef(request.locationRef());
+        }
+        if (request.tags() != null) {
+            note.setTags(resolveTags(request.tags()));
+        }
+        return NoteResponse.from(noteRepository.save(note));
+    }
+
+    /**
+     * Removes the note and, with it, its FROM_SOURCE / TAGGED / LINKS_TO
+     * relationships. Tags left with no notes are kept.
+     */
+    @Transactional
+    public void delete(String id) {
+        findOrThrow(id);
+        noteRepository.deleteById(id);
     }
 
     private Note findOrThrow(String id) {

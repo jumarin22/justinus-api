@@ -219,6 +219,18 @@ in `SPEC.md` rather than left to be rediscovered.
     test collision ("Amor fati" in two ITs sharing one container) was
     the constraint doing its job; renamed one. 44 tests passing.
 
+19. **DELETE endpoints + PATCH /notes** -- **done, verified.** Nothing
+    could be deleted before (the duplicate concepts from step 18 had to
+    be removed in Cypher by hand). `DELETE` on links, concepts, notes and
+    sources, 204 / 404. Deleting a node removes all its relationships
+    (SDN's `deleteById` detaches -- confirmed by test: a deleted
+    concept's links 404 and the other endpoint survives). Source with
+    notes is 409 rather than orphaning or cascading. Tags are kept when
+    orphaned (a test reuses one afterwards). `PATCH /notes/{id}` added:
+    content/locationRef, and `tags` replaces the set. `SourceService`
+    now takes `NoteRepository` directly, since `NoteService` already
+    depends on `SourceService`. Bruno requests added. 55 tests passing.
+
 **Concept + Link round: complete.** `/search` operators/phrases are a
 deliberate non-feature (input is escaped to plain words); revisit if
 phrase search matters.

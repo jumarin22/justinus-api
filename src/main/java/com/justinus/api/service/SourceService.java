@@ -6,6 +6,8 @@ import com.justinus.api.dto.SourceRequest;
 import com.justinus.api.dto.SourceResponse;
 import com.justinus.api.exception.InvalidRequestException;
 import com.justinus.api.exception.ResourceNotFoundException;
+import com.justinus.api.exception.ConflictException;
+import com.justinus.api.repository.NoteRepository;
 import com.justinus.api.repository.SourceRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,9 +21,11 @@ import java.time.LocalDate;
 public class SourceService {
 
     private final SourceRepository sourceRepository;
+    private final NoteRepository noteRepository;
 
-    public SourceService(SourceRepository sourceRepository) {
+    public SourceService(SourceRepository sourceRepository, NoteRepository noteRepository) {
         this.sourceRepository = sourceRepository;
+        this.noteRepository = noteRepository;
     }
 
     @Transactional
@@ -81,6 +85,20 @@ public class SourceService {
         // Unlike JPA, SDN has no persistence-context dirty checking --
         // mutating a loaded entity does nothing until it's saved again.
         return SourceResponse.from(sourceRepository.save(source));
+    }
+
+    /**
+     * Refuses to delete a source that still has notes, rather than
+     * silently orphaning (or silently destroying) them. Removes the
+     * source's own LINKS_TO relationships with it.
+     */
+    @Transactional
+    public void delete(String id) {
+        findOrThrow(id);
+        if (noteRepository.existsBySourceId(id)) {
+            throw new ConflictException("Source still has notes; delete them first");
+        }
+        sourceRepository.deleteById(id);
     }
 
     Source findOrThrow(String id) {

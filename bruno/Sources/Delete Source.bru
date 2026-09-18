@@ -1,0 +1,11 @@
+meta {
+  name: Delete Source
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/sources/{{sourceId}}
+  body: none
+  auth: none
+}
