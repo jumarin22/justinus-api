@@ -159,7 +159,7 @@ the way (stale migrations-library version, no JPA-style dirty
 checking, Neo4j's schema-optional-per-property warning) is documented
 in `SPEC.md` rather than left to be rediscovered.
 
-## Next round: Concept + Link (in progress)
+## Next round: Concept + Link (complete)
 
 14. **Concept node, repository, DTOs, service, controller, tests** --
     **done, verified.** `Concept` is a plain `@Node` (UUID string id,
@@ -192,8 +192,20 @@ in `SPEC.md` rather than left to be rediscovered.
     either direction: ids come from Cypher (paginated, distinct), then
     `findAllById` hydrates them and the page order is restored, since
     `findAllById` doesn't preserve order. `mvn verify`: 35 tests passing.
-    **Next: full-text `/search` (Neo4j fulltext index across Note and
-    Source).**
+17. **Full-text search** -- **done, verified.** `V3` migration creates
+    one multi-label fulltext index (`Note|Source` over content, title,
+    author, generalNotes); `GET /search?q=` queries it via
+    `db.index.fulltext.queryNodes`, paginated, ranked by score. The
+    index speaks Lucene syntax, so raw user input can 500: unbalanced
+    quotes, `(`, `:` etc. are escaped, and bare `AND`/`OR`/`NOT` are
+    lowercased (found by test: `"a AND"` is a parse error even with
+    all special characters escaped). A missing `q` had also been a 500
+    -- `MissingServletRequestParameterException` now maps to 400.
+    `mvn verify`: 40 tests passing.
+
+**Concept + Link round: complete.** `/search` operators/phrases are a
+deliberate non-feature (input is escaped to plain words); revisit if
+phrase search matters.
 
 
 Start with a fresh planning pass again once Source + Note is solid on

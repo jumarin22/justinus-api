@@ -5,10 +5,11 @@ articles, papers) and the ideas/connections between them. A lightweight
 Zettelkasten/PKM engine. See `SPEC.md` for the full design rationale
 and `BUILD_PLAN.md` for the step-by-step build log.
 
-Currently implemented: **Source** and **Note** (with tagging), both
-end-to-end -- node, migration, repository, service, controller,
-validation, error handling, integration tests. **Concept** and
-**Link** are specced but not yet built.
+Currently implemented, all end-to-end (node, migration, repository,
+service, controller, validation, error handling, integration tests):
+**Source**, **Note** (with tagging), **Concept**, **Link** (a generic
+`LINKS_TO` relationship between any two of them), the concept graph
+query, and full-text search.
 
 Built on **Neo4j / Spring Data Neo4j**, not a relational database --
 pivoted from an earlier, fully working Postgres/JPA build once Link's
@@ -123,6 +124,17 @@ GET/POST     /sources/{id}/notes
 
 GET/POST     /notes
 GET          /notes/{id}
+
+GET/POST     /concepts
+GET/PATCH    /concepts/{id}
+GET          /concepts/{id}/notes
+GET          /concepts/{id}/graph?depth=2
+
+POST         /links
+GET          /links/{id}
+GET          /{sources,notes,concepts}/{id}/links
+
+GET          /search?q=...
 ```
 
 - **All ids are UUID strings** (e.g. `3fa85f64-5717-4562-b3fc-
@@ -143,6 +155,17 @@ GET          /notes/{id}
   never need to know a tag's id up front.
 - `GET /sources/{id}/notes` (and note creation under a missing source)
   return 404, not an empty list, if the source doesn't exist.
+- A link is `{fromType, fromId, toType, toId, type}` where the types
+  are `SOURCE`/`NOTE`/`CONCEPT` and `type` is `SUPPORTS`/`CONTRADICTS`/
+  `EXTENDS`/`RELATES_TO`. A missing endpoint (or an id that doesn't
+  match its stated type) is a 404; linking a node to itself is a 400.
+  `/{kind}/{id}/links` lists links in either direction.
+- `/concepts/{id}/graph` returns `{nodes, edges}` for everything within
+  `depth` hops (default 2, max 5) in either direction.
+- `/search` runs a Neo4j full-text index over Note content and Source
+  title/author/notes, ranked by score. Query text is treated as plain
+  words: Lucene syntax characters and `AND`/`OR`/`NOT` are neutralized,
+  so operators and quoted phrases are not supported.
 - Errors return a consistent body: `{ "status": <int>, "message":
   <string>, "timestamp": <ISO-8601> }`. No stack traces are ever
   returned; unexpected (500) errors are logged server-side.
@@ -211,10 +234,5 @@ Spring Boot Actuator is included; `GET /actuator/health` reports `UP`
 
 ## Not yet built
 
-- `Concept` and `Link` entities/endpoints (see `SPEC.md`) -- Link will
-  be a single generic `LINKS_TO` graph relationship connecting any two
-  Source/Note/Concept nodes, not its own node/table
-- `GET /concepts/{id}/graph` (native Cypher variable-length path query)
-- `GET /search` (Neo4j full-text schema index)
 - Auth (deliberately deferred -- see `SPEC.md`'s "Out of scope"
   section for the concrete plan and why)
