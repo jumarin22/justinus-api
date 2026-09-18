@@ -277,3 +277,57 @@ than re-litigating:
   Cypher traversal, full-text search). Give it the same unhurried,
   fully-verified pace Source + Note gets, not a rushed afterthought
   once the "foundational" part feels done.
+
+## Next round: running it at home (not started)
+
+Context: the app is feature-complete for its spec (Source, Note, Tag,
+Concept, Link, graph, search, DELETE/PATCH; 57 tests). The plan is to
+deploy it on a **home network only**, so auth (`SPEC.md`'s `X-API-Key`
+plan) is deliberately skipped for now -- but see item 2, because
+"home network only" doesn't make the database safe by itself. Assessed
+after step 20; everything below is verified-as-of-then, not yet done.
+
+In priority order:
+
+1. **Backups -- the real risk.** All data lives in one Docker named
+   volume (`justinus-api_justinus-api-neo4j-data`). `docker compose
+   down -v`, a Docker/Colima reinstall, or a disk failure loses it all,
+   and there is no export path. Do: a scheduled dump (`neo4j-admin
+   database dump` -- Community Edition needs the DB stopped, so either
+   stop-dump-start or dump the volume from a throwaway container) to a
+   directory outside Docker's storage, and *test a restore once*. An
+   `GET /export` endpoint (all nodes + links as JSON) is a nice
+   secondary safety net that also survives a Neo4j major upgrade.
+2. **Neo4j is exposed to the whole network.** `docker-compose.yml`
+   publishes 7474 (browser) and 7687 (bolt) on all interfaces with the
+   default password `justinus`; anyone on the LAN can read/write the
+   data directly, bypassing the API. Do: bind to loopback
+   (`"127.0.0.1:7687:7687"`) if only the app talks to it, and set a real
+   `NEO4J_PASSWORD` (the app already reads it from the environment).
+   Note the neo4j-browser port too.
+3. **The app itself isn't packaged.** No Dockerfile; it only runs via
+   `mvn spring-boot:run`. Do: a Dockerfile (multi-stage or a prebuilt
+   jar, Java 25), an `app` service in `docker-compose.yml` with
+   `restart: unless-stopped` and `depends_on` Neo4j healthy so it
+   survives reboots, and scan the result with `trivy image`.
+4. **Config is dev-shaped.** `spring.neo4j.uri` is hardcoded to
+   `bolt://localhost:7687` in `application.yml`; inside a container it
+   must point at the compose service (`bolt://neo4j:7687`). Make it an
+   env var (same `${VAR:default}` pattern as the credentials).
+5. **Scan the database image too.** `trivy fs` only reads `pom.xml`;
+   `trivy image neo4j:5-community` covers the DB container. Re-run
+   `trivy fs --scanners vuln .` after any dependency bump.
+
+Smaller, not urgent:
+
+- No way to rename/delete a Tag, or bulk-remove a node's links.
+- `/concepts/{id}/graph` caps depth (5) but not node count; only a
+  concern in a very large, densely linked graph.
+- `/search` treats input as plain words (operators and quoted phrases
+  are deliberately escaped away, step 17).
+- No concurrency tests beyond the single Concept-name constraint check.
+- Bruno requests (steps 14-19) were written but never run against a
+  live app -- worth one pass through the collection.
+
+Auth, when it does matter (anything beyond the home network): a static
+`X-API-Key` filter per `SPEC.md`'s "Out of scope" section.
