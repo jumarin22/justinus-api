@@ -3,6 +3,9 @@ package com.justinus.api.controller;
 import com.justinus.api.dto.ConceptPatchRequest;
 import com.justinus.api.dto.ConceptRequest;
 import com.justinus.api.dto.ConceptResponse;
+import com.justinus.api.domain.LinkableType;
+import com.justinus.api.dto.LinkResponse;
+import com.justinus.api.service.LinkService;
 import com.justinus.api.service.ConceptService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -22,8 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class ConceptController {
 
     private final ConceptService conceptService;
+    private final LinkService linkService;
 
-    public ConceptController(ConceptService conceptService) {
+    public ConceptController(ConceptService conceptService, LinkService linkService) {
+        this.linkService = linkService;
         this.conceptService = conceptService;
     }
 
@@ -45,5 +50,10 @@ public class ConceptController {
     @PatchMapping("/{id}")
     public ConceptResponse patch(@PathVariable String id, @Valid @RequestBody ConceptPatchRequest request) {
         return conceptService.patch(id, request);
+    }
+
+    @GetMapping("/{id}/links")
+    public PagedModel<LinkResponse> listLinks(@PathVariable String id, Pageable pageable) {
+        return new PagedModel<>(linkService.listTouching(LinkableType.CONCEPT, id, pageable));
     }
 }

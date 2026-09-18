@@ -167,8 +167,22 @@ in `SPEC.md` rather than left to be rediscovered.
     following the Source pattern. `mvn verify` runs 22 tests (7 Source
     + 8 Note + 7 Concept), all passing. `/concepts/{id}/notes`, `/graph`
     and `/links` are deferred until Link exists.
-    **Next: Link (`LINKS_TO` relationship with `id`/`createdAt`/`type`),
-    then `/concepts/{id}/graph`, then full-text `/search`.**
+15. **Link** -- **done, verified.** `LINKS_TO` relationships with
+    `id`/`type`/`createdAt` between any two Source/Note/Concept nodes.
+    SDN's relationship mapping needs a statically typed target entity,
+    which doesn't fit "any of three labels", so `LinkRepository` uses
+    `Neo4jClient` with plain Cypher (labels come from the closed
+    `LinkableType` enum, never user input). The service looks up each
+    endpoint by its stated type first: a missing node or a type/id
+    mismatch is a 404, self-links are a 400. Endpoints: `POST /links`,
+    `GET /links/{id}`, and paginated `GET /{sources,notes,concepts}/{id}/links`
+    (either direction, reported in stored direction). Found and fixed a
+    pre-existing gap along the way: an invalid enum value or malformed
+    JSON returned 500 -- `GlobalExceptionHandler` now maps
+    `HttpMessageNotReadableException` to 400. `mvn verify`: 31 tests
+    passing.
+    **Next: `/concepts/{id}/graph` (variable-length Cypher path), then
+    `/concepts/{id}/notes`, then full-text `/search`.**
 
 
 Start with a fresh planning pass again once Source + Note is solid on

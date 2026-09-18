@@ -2,6 +2,9 @@ package com.justinus.api.controller;
 
 import com.justinus.api.dto.NoteRequest;
 import com.justinus.api.dto.NoteResponse;
+import com.justinus.api.domain.LinkableType;
+import com.justinus.api.dto.LinkResponse;
+import com.justinus.api.service.LinkService;
 import com.justinus.api.service.NoteService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -20,8 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class NoteController {
 
     private final NoteService noteService;
+    private final LinkService linkService;
 
-    public NoteController(NoteService noteService) {
+    public NoteController(NoteService noteService, LinkService linkService) {
+        this.linkService = linkService;
         this.noteService = noteService;
     }
 
@@ -38,5 +43,10 @@ public class NoteController {
     @GetMapping("/{id}")
     public NoteResponse getById(@PathVariable String id) {
         return noteService.getById(id);
+    }
+
+    @GetMapping("/{id}/links")
+    public PagedModel<LinkResponse> listLinks(@PathVariable String id, Pageable pageable) {
+        return new PagedModel<>(linkService.listTouching(LinkableType.NOTE, id, pageable));
     }
 }
